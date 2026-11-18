@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // World of Hyrule — static Vite SPA. Deploy: npm run deploy → woh.ibm.io
+  "name": "woh",
+  "compatibility_date": "2026-09-25",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    { "pattern": "woh.ibm.io", "custom_domain": true }
+  ],
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true
+  }
+}

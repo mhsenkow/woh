@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// GitHub Pages project site: https://mhsenkow.github.io/woh/
+// Live: https://woh.ibm.io (Cloudflare Workers assets)
 export default defineConfig({
-  base: '/woh/',
+  base: '/',
   plugins: [react()],
   resolve: {
     alias: {

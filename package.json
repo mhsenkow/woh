@@ -7,10 +7,19 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run",
     "format": "prettier --write \"src/**/*.{ts,tsx}\""
   },
-  "homepage": "https://mhsenkow.github.io/woh/",
-  "keywords": ["rts", "voxel", "world-of-hyrule", "papercraft", "woh"],
+  "homepage": "https://woh.ibm.io",
+  "keywords": [
+    "rts",
+    "voxel",
+    "world-of-hyrule",
+    "papercraft",
+    "woh",
+    "ibm.io"
+  ],
   "author": "PaperCraft Team",
   "license": "MIT",
   "devDependencies": {
@@ -20,7 +29,8 @@
     "@vitejs/plugin-react": "^6.3.0",
     "prettier": "^3.10.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.8"
+    "vite": "^8.3.8",
+    "wrangler": "^4.164.0"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
