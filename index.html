@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>World of Hyrule</title>
+    <meta name="description" content="World of Hyrule — micro-voxel RTS diorama. Select units, issue orders, and clash across realms." />
+    <meta property="og:title" content="World of Hyrule" />
+    <meta property="og:description" content="World of Hyrule — micro-voxel RTS diorama." />
+    <meta name="application-name" content="World of Hyrule" />
+    <style>
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; }
+      #app { width: 100%; height: 100%; position: relative; }
+      #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+      /* HUD shell never steals trackpad/mouse — only interactive panels opt in. */
+      #hud-root { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="game-canvas"></div>
+      <div id="hud-root"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "paths": {
+      "@engine/*": ["./src/engine/*"],
+      "@sim/*": ["./src/sim/*"],
+      "@game/*": ["./src/game/*"],
+      "@input/*": ["./src/input/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@net/*": ["./src/net/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/types/**/*.d.ts", "vite-env.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}
