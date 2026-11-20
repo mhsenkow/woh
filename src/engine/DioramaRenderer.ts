@@ -15,11 +15,11 @@ export class DioramaRenderer {
   constructor(container: HTMLElement) {
     this.container = container;
     this.scene = new THREE.Scene();
-    // Soft sky haze — perspective camera sits ~35–50 from look-at; fog frames
-    // the island rim and horizon without wiping the playfield.
-    const haze = new THREE.Color(0x7a9ab8);
-    this.scene.background = haze;
-    this.scene.fog = new THREE.Fog(haze, 42, 130);
+    // Paper sky. Distance fog stays behind the playfield; the sea's own
+    // mist ring hides the far water so the horizon is not one big gradient.
+    const paper = new THREE.Color(0xf0eee9);
+    this.scene.background = paper;
+    this.scene.fog = new THREE.Fog(paper, 280, 640);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -29,8 +29,8 @@ export class DioramaRenderer {
     });
 
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.95;
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;

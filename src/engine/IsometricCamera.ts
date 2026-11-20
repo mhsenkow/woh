@@ -2,16 +2,16 @@ import * as THREE from 'three';
 import { isKeyDown, readMoveAxes } from '../input/InputManager';
 
 /**
- * Populous: The Beginning god-view — lower perspective pitch so the land
- * stretches toward a hazy horizon, with upright standees on the playfield.
+ * Ink-studio isometric: high pitch, narrow FOV, so the overworld reads as a
+ * tilted pixel map and the standees stay upright cutouts on it.
  */
-const DEFAULT_PITCH = (42 * Math.PI) / 180;
+const DEFAULT_PITCH = (52 * Math.PI) / 180;
 const DEFAULT_YAW = (45 * Math.PI) / 180;
-/** Vertical FOV — moderate, like late-90s 3D god games. */
-const DEFAULT_FOV = 42;
+/** Narrow FOV keeps the playfield close to orthographic without a frustum zoom rewrite. */
+const DEFAULT_FOV = 32;
 
 const MIN_ZOOM = 8;
-const MAX_ZOOM = 90;
+const MAX_ZOOM = 160;
 /** God-game band: low enough to read cliffs, not so low you hug the horizon. */
 const MIN_PITCH = (28 * Math.PI) / 180;
 const MAX_PITCH = (58 * Math.PI) / 180;

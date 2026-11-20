@@ -45,6 +45,7 @@ export function meshChunk(
   const positions: number[] = [];
   const normals: number[] = [];
   const colors: number[] = [];
+  const types: number[] = [];
   const indices: number[] = [];
   let vertCount = 0;
 
@@ -65,6 +66,7 @@ export function meshChunk(
     corners: [number, number, number][],
     normal: [number, number, number],
     color: [number, number, number],
+    voxelType: number,
   ) => {
     const s = shadeFor(normal[1]);
     const r = color[0] * s;
@@ -78,6 +80,7 @@ export function meshChunk(
       );
       normals.push(normal[0], normal[1], normal[2]);
       colors.push(r, g, b);
+      types.push(voxelType);
     }
     indices.push(vertCount, vertCount + 1, vertCount + 2);
     indices.push(vertCount, vertCount + 2, vertCount + 3);
@@ -103,6 +106,7 @@ export function meshChunk(
             ],
             [0, 1, 0],
             color,
+            voxel,
           );
         }
 
@@ -117,6 +121,7 @@ export function meshChunk(
             ],
             [0, -1, 0],
             color,
+            voxel,
           );
         }
       }
@@ -169,6 +174,7 @@ export function meshChunk(
               ],
               normal,
               color,
+              voxel,
             );
           } else if (axis === 0 && dir === -1) {
             pushQuad(
@@ -180,6 +186,7 @@ export function meshChunk(
               ],
               normal,
               color,
+              voxel,
             );
           } else if (axis === 2 && dir === 1) {
             pushQuad(
@@ -191,6 +198,7 @@ export function meshChunk(
               ],
               normal,
               color,
+              voxel,
             );
           } else {
             pushQuad(
@@ -202,6 +210,7 @@ export function meshChunk(
               ],
               normal,
               color,
+              voxel,
             );
           }
         }
@@ -215,6 +224,7 @@ export function meshChunk(
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.setAttribute('aVoxel', new THREE.Float32BufferAttribute(types, 1));
   geo.setIndex(indices);
   return geo;
 }
@@ -224,11 +234,13 @@ export function meshWater(
   sample: VoxelSampler = (x, y, z) => chunk.get(x, y, z),
 ): THREE.BufferGeometry | null {
   const positions: number[] = [];
+  const shores: number[] = [];
   const indices: number[] = [];
   let vertCount = 0;
   const ox = chunk.cx * CHUNK_SIZE;
   const oy = chunk.cy * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
+  const isLand = (v: VoxelType) => v !== VoxelType.Air && v !== VoxelType.Water;
 
   for (let z = 0; z < CHUNK_SIZE; z++) {
     for (let x = 0; x < CHUNK_SIZE; x++) {
@@ -237,12 +249,20 @@ export function meshWater(
         const above = sample(ox + x, oy + y + 1, oz + z);
         if (above === VoxelType.Air || y === CHUNK_SIZE - 1) {
           const waterY = (y + 0.85) * VOXEL_SCALE;
+          const shore =
+            isLand(sample(ox + x - 1, oy + y, oz + z)) ||
+            isLand(sample(ox + x + 1, oy + y, oz + z)) ||
+            isLand(sample(ox + x, oy + y, oz + z - 1)) ||
+            isLand(sample(ox + x, oy + y, oz + z + 1))
+              ? 1
+              : 0;
           positions.push(
             x * VOXEL_SCALE, waterY, z * VOXEL_SCALE,
             x * VOXEL_SCALE, waterY, (z + 1) * VOXEL_SCALE,
             (x + 1) * VOXEL_SCALE, waterY, (z + 1) * VOXEL_SCALE,
             (x + 1) * VOXEL_SCALE, waterY, z * VOXEL_SCALE,
           );
+          shores.push(shore, shore, shore, shore);
           indices.push(vertCount, vertCount + 1, vertCount + 2);
           indices.push(vertCount, vertCount + 2, vertCount + 3);
           vertCount += 4;
@@ -255,6 +275,7 @@ export function meshWater(
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('aShore', new THREE.Float32BufferAttribute(shores, 1));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;

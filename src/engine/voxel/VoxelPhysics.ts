@@ -8,7 +8,7 @@ export interface VoxelImpact {
   worldZ: number;
   /** Radius in world meters. */
   radius: number;
-  type: 'explosion' | 'fire' | 'ice' | 'tunnel';
+  type: 'explosion' | 'fire' | 'ice' | 'tunnel' | 'malice' | 'void';
 }
 
 /**
@@ -57,6 +57,12 @@ export class VoxelPhysics {
             case 'tunnel':
               this.digTunnel(chunk, localX, localY, localZ, radiusVox);
               break;
+            case 'malice':
+              this.paintSurface(chunk, localX, localY, localZ, radiusVox, VoxelType.Malice);
+              break;
+            case 'void':
+              this.paintSurface(chunk, localX, localY, localZ, radiusVox, VoxelType.Void);
+              break;
           }
         }
       }
@@ -102,6 +108,30 @@ export class VoxelPhysics {
         const v = chunk.get(cx + dx, cy, cz + dz);
         if (v === VoxelType.Dirt || v === VoxelType.Sand) {
           chunk.set(cx + dx, cy, cz + dz, VoxelType.Air);
+        }
+      }
+    }
+  }
+
+  /** Paint topmost solid voxels in radius to Malice / Void. */
+  private paintSurface(
+    chunk: { get: Function; set: Function },
+    cx: number,
+    cy: number,
+    cz: number,
+    r: number,
+    paint: VoxelType,
+  ): void {
+    const ri = Math.ceil(r);
+    for (let dz = -ri; dz <= ri; dz++) {
+      for (let dx = -ri; dx <= ri; dx++) {
+        if (dx * dx + dz * dz > r * r) continue;
+        // Search upward for a surface cell
+        for (let dy = ri; dy >= -ri; dy--) {
+          const v = chunk.get(cx + dx, cy + dy, cz + dz);
+          if (v === VoxelType.Air || v === VoxelType.Water) continue;
+          chunk.set(cx + dx, cy + dy, cz + dz, paint);
+          break;
         }
       }
     }

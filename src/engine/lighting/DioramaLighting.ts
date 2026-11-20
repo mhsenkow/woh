@@ -14,17 +14,17 @@ export interface DioramaLightConfig {
   shadowBias: number;
 }
 
-/** Golden-hour tabletop diorama lighting — warm key, cool fill, bright rim. */
+/** Paper-field daylight. Soft enough that stipple colors stay put, with a key from the iso upper-left. */
 export const DEFAULT_LIGHT_CONFIG: DioramaLightConfig = {
-  keyColor: 0xffe2b8,
-  keyIntensity: 2.2,
+  keyColor: 0xfff3e0,
+  keyIntensity: 1.25,
   keyPosition: [18, 28, 14],
-  fillColor: 0x88a8d0,
-  fillIntensity: 0.45,
-  rimColor: 0xffe8c0,
-  rimIntensity: 0.9,
-  ambientColor: 0x3a4860,
-  ambientIntensity: 0.35,
+  fillColor: 0xf0eee9,
+  fillIntensity: 0.42,
+  rimColor: 0xfff6e8,
+  rimIntensity: 0.22,
+  ambientColor: 0xfff8ee,
+  ambientIntensity: 0.48,
   shadowMapSize: 2048,
   shadowBias: -0.0003,
 };
@@ -54,7 +54,7 @@ export class DioramaLighting {
     this.group.add(this.keyLight);
     this.group.add(this.keyLight.target);
 
-    this.fillLight = new THREE.HemisphereLight(cfg.fillColor, 0x3a2a18, cfg.fillIntensity);
+    this.fillLight = new THREE.HemisphereLight(cfg.fillColor, 0xc4a882, cfg.fillIntensity);
     this.group.add(this.fillLight);
 
     this.rimLight = new THREE.DirectionalLight(cfg.rimColor, cfg.rimIntensity);

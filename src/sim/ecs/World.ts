@@ -5,12 +5,15 @@ import {
   Combat, Standee, Pathfinding, Hero, Building, Harvester, Builder,
   FactionId, AlignmentId,
 } from './components';
+import { getHero } from '../../game/heroes/HeroDefinitions';
 
 export interface GameWorld {
   time: { delta: number; elapsed: number; tick: number };
   resources: Record<number, { rupees: number; coins: number; starBits: number }>;
   /** Faction id under local player control — AI skips these units. */
   playerFaction: number;
+  /** Optional terrain query so movement can wade. */
+  terrain?: { isWater: (x: number, z: number) => boolean };
 }
 
 const worlds = new WeakMap<object, GameWorld>();
@@ -57,7 +60,11 @@ export function spawnUnit(
   Health.current[eid] = stats.hp;
   Health.max[eid] = stats.hp;
   Health.armor[eid] = 0;
-  Health.shield[eid] = 0;
+  // Dream Land / elite-ish units start with a light shield so drain kits matter
+  Health.shield[eid] =
+    factionId === FactionId.DreamLandStarGuard ? Math.floor(stats.hp * 0.25) :
+    factionId === FactionId.HyruleRoyalGuard ? Math.floor(stats.hp * 0.1) :
+    0;
 
   addComponent(world, Faction, eid);
   Faction.id[eid] = factionId;
@@ -101,14 +108,22 @@ export function spawnHero(
   y: number,
   z: number,
 ): number {
+  const def = getHero(heroId);
   const eid = spawnUnit(world, factionId, alignment, 999, x, y, z, {
-    hp: 500, damage: 25, range: 1.5, speed: 3.0, attackSpeed: 1.2,
+    hp: def?.hp ?? 500,
+    damage: def?.damage ?? 25,
+    range: def?.range ?? 1.5,
+    speed: def?.speed ?? 3.0,
+    attackSpeed: 1.2,
   });
 
   addComponent(world, Hero, eid);
   Hero.heroId[eid] = heroId;
   Hero.level[eid] = 1;
   Hero.experience[eid] = 0;
+  Hero.ability1Cooldown[eid] = 0;
+  Hero.ability2Cooldown[eid] = 0;
+  Hero.ability3Cooldown[eid] = 0;
 
   Standee.isElite[eid] = 1;
 

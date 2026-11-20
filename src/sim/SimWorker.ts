@@ -43,6 +43,11 @@ export class SimLoop {
     }
   }
 
+  /** Run one sim tick (also used by debug harness when rAF is paused). */
+  step(n = 1): void {
+    for (let i = 0; i < n; i++) this.tick();
+  }
+
   private tick(): void {
     const meta = getMeta(this.world);
     const dt = TICK_DURATION / 1000;

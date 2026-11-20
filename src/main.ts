@@ -14,17 +14,20 @@ import {
   artKindForUnit,
   type StandeeArtKind,
 } from './engine/standee/StandeeArtFactory';
-import { loadChromaKeyTexture } from './engine/standee/SpriteLoader';
 import { BuildingRenderer } from './engine/buildings/BuildingRenderer';
 import { FlatTrees, floraThemeFromBiome } from './engine/props/FlatTrees';
 import { VoxelPhysics } from './engine/voxel/VoxelPhysics';
+import { WaterSurface } from './engine/voxel/WaterSurface';
+import { CHUNK_SIZE, VOXEL_SCALE, VoxelType } from './engine/voxel/VoxelChunk';
+import { OCEAN_Y } from './engine/voxel/VoxelWorld';
 import { applyPostProcessConfig, createDioramaPostStack } from './engine/fx/PostProcessing';
 import { createExplosionEmitter } from './engine/fx/ParticlePool';
 import { loadMap, DEFAULT_MAP } from './game/maps/MapLoader';
 import { SimLoop } from './sim/SimWorker';
 import { spawnMidGameScenario } from './game/scenarios/MidGameScenario';
 import { drainCombatEvents } from './sim/ecs/systems/CombatSystem';
-import { Position, Health, Standee, Faction, UnitType, Building, Pathfinding } from './sim/ecs/components';
+import { getCreepState } from './sim/ecs/systems/CreepSystem';
+import { Position, Health, Standee, Faction, UnitType, Building, Pathfinding, Target, Combat } from './sim/ecs/components';
 import { getResources } from './sim/ecs/systems/ResourceSystem';
 import { FactionId } from './sim/ecs/components';
 import { InputManager } from './input/InputManager';
@@ -51,9 +54,10 @@ async function boot() {
   iso.attach(container);
 
   const post = createDioramaPostStack(diorama.renderer, diorama.scene, iso.camera, {
-    bokehScale: 2.6,
-    focusRange: 16,
-    vignetteIntensity: 0.32,
+    bokehScale: 0.15,
+    focusRange: 80,
+    vignetteIntensity: 0.05,
+    bloomStrength: 0.04,
   });
   post.setSize(diorama.width, diorama.height);
   window.addEventListener('resize', () => {
@@ -64,7 +68,7 @@ async function boot() {
   diorama.scene.add(lighting.group);
 
   const groundGeo = new THREE.PlaneGeometry(200, 200);
-  const groundMat = new THREE.ShadowMaterial({ opacity: 0.22 });
+  const groundMat = new THREE.ShadowMaterial({ opacity: 0.32 });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.01;
@@ -73,10 +77,11 @@ async function boot() {
 
   const voxelWorld = new VoxelWorld();
   const mapDef = loadMap(voxelWorld, DEFAULT_MAP);
+  diorama.scene.add(voxelWorld.createOcean());
   diorama.scene.add(voxelWorld.group);
 
   // Keep the camera over the playable diorama (chunkRadius → world meters + padding)
-  const mapExtent = mapDef.chunkRadius * 32 * 0.25 * 2.2;
+  const mapExtent = mapDef.chunkRadius * 32 * 0.25 * 3.2;
   iso.setBounds({
     minX: -mapExtent,
     maxX: mapExtent,
@@ -97,31 +102,56 @@ async function boot() {
   // Realm flora — Zelda / Mario / Kirby silhouettes matched to map biome (or mixed sectors)
   const floraTheme =
     mapDef.realm === 'Neutral' ? 'mixed' : floraThemeFromBiome(mapDef.biome);
-  const trees = new FlatTrees(56, 26, floraTheme);
+  const trees = new FlatTrees(0, 26, floraTheme);
+  trees.plantGroves({
+    isGrass: (x, z) => voxelWorld.surfaceType(x, z) === VoxelType.Grass,
+    isShore: (x, z) => {
+      const shore = voxelWorld.probe(x, z);
+      return shore.top === VoxelType.Sand && shore.landY >= OCEAN_Y && shore.landY < OCEAN_Y + 0.85;
+    },
+    height: (x, z) => voxelWorld.getSurfaceHeight(x, z),
+  });
   diorama.scene.add(trees.group);
-  trees.seatOnTerrain((x, z) => voxelWorld.getSurfaceHeight(x, z));
+
+  const water = new WaterSurface(voxelWorld);
 
   const voxelPhysics = new VoxelPhysics(voxelWorld);
+
+  // Seed creep sim state from map Malice / Void voxels so adrenal / drain kits work immediately
+  {
+    const creep = getCreepState();
+    voxelWorld.forEachChunk((chunk) => {
+      for (let z = 0; z < CHUNK_SIZE; z++) {
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          for (let y = CHUNK_SIZE - 1; y >= 0; y--) {
+            const v = chunk.get(x, y, z);
+            if (v !== VoxelType.Malice && v !== VoxelType.Void) continue;
+            const wx = (chunk.cx * CHUNK_SIZE + x) * VOXEL_SCALE;
+            const wz = (chunk.cz * CHUNK_SIZE + z) * VOXEL_SCALE;
+            const key = `${Math.floor(wx)},${Math.floor(wz)}`;
+            if (v === VoxelType.Malice) creep.maliceTiles.add(key);
+            else creep.voidTiles.add(key);
+            break;
+          }
+        }
+      }
+    });
+  }
 
   const explosionEmitter = createExplosionEmitter();
   diorama.scene.add(explosionEmitter.mesh);
 
-  const aiTextures = new Map<StandeeArtKind, THREE.Texture>();
-  try {
-    aiTextures.set('soldier-hyrule', await loadChromaKeyTexture('/sprites/soldier-hyrule.jpg'));
-  } catch { /* procedural */ }
-  try {
-    aiTextures.set('bokoblin-malice', await loadChromaKeyTexture('/sprites/bokoblin-malice.jpg'));
-  } catch { /* procedural */ }
-
+  // Procedural PaperCraft roster — cohesive Zelda/Mario/Kirby silhouettes
   const artCache = new Map<StandeeArtKind, THREE.Texture>();
   function getArtTexture(kind: StandeeArtKind): THREE.Texture {
-    if (aiTextures.has(kind)) return aiTextures.get(kind)!;
     if (!artCache.has(kind)) artCache.set(kind, createStandeeArtTexture(kind, 512));
     return artCache.get(kind)!;
   }
 
   const sim = new SimLoop();
+  getMeta(sim.world).terrain = {
+    isWater: (x, z) => voxelWorld.isWater(x, z),
+  };
   const scenario = spawnMidGameScenario(sim.world, mapDef.spawnPoints);
   const allUnitEids = scenario.unitEids;
 
@@ -155,8 +185,8 @@ async function boot() {
     standeeRenderer.createStandee(
       eid,
       isElite
-        ? { width: 1.6, height: 2.4, baseRadius: 0.55, rimDepth: 0.08 }
-        : { width: 1.2, height: 1.85, rimDepth: 0.08 },
+        ? { width: 1.7, height: 2.55, baseRadius: 0.48, rimDepth: 0.16 }
+        : { width: 1.28, height: 2.05, rimDepth: 0.14 },
       mat,
       primaryColor,
     );
@@ -207,6 +237,9 @@ async function boot() {
   input.registerHotkey('h', () => withSelection('hold'));
   input.registerHotkey('a', () => withSelection('attack'));
   input.registerHotkey('m', () => withSelection('move'));
+  input.registerHotkey('q', () => withSelection('ability1'));
+  input.registerHotkey('w', () => withSelection('ability2'));
+  input.registerHotkey('e', () => withSelection('ability3'));
   input.registerHotkey('escape', () => {
     selection.clearSelection();
     selection.setOrderMode('default');
@@ -295,15 +328,17 @@ async function boot() {
   }
 
   let lastTime = performance.now();
+  let frameCount = 0;
 
   function frame(time: number) {
     requestAnimationFrame(frame);
     const dt = (time - lastTime) / 1000;
     lastTime = time;
+    frameCount++;
 
     sim.update(time);
 
-    // Combat → particles + destructible terrain (low-poly landscape that explodes)
+    // Combat → particles + destructible / corrupted terrain
     for (const ev of drainCombatEvents()) {
       if (ev.type === 'kill') {
         explosionEmitter.emit(new THREE.Vector3(ev.x, ev.y + 0.5, ev.z), ev.wasBuilding ? 40 : 18);
@@ -314,21 +349,53 @@ async function boot() {
           radius: ev.wasBuilding ? 1.1 : 0.55,
           type: 'explosion',
         });
+        water.wake(ev.x, ev.z, ev.wasBuilding ? 1.6 : 0.9);
         if (ev.wasBuilding) {
-          // Hide ruined building standee
           for (const eid of buildingQuery(sim.world)) {
             if (Health.current[eid] <= 0) buildingRenderer.removeBuilding(eid);
           }
         }
-      } else if (ev.type === 'hit' && ev.ranged) {
+      } else if (ev.type === 'hit' && (ev.ranged || ev.kind === 'splash' || ev.kind === 'spin')) {
         explosionEmitter.emit(new THREE.Vector3(ev.x, ev.y + 0.4, ev.z), 4);
+      } else if (ev.type === 'heal' || ev.type === 'buff') {
+        explosionEmitter.emit(new THREE.Vector3(ev.x, ev.y + 0.6, ev.z), 3);
+      } else if (ev.type === 'ability') {
+        explosionEmitter.emit(new THREE.Vector3(ev.x, ev.y + 0.8, ev.z), 12);
+      } else if (ev.type === 'landscape') {
+        const impact =
+          ev.impact === 'malice' || ev.impact === 'void' || ev.impact === 'fire' ||
+          ev.impact === 'ice' || ev.impact === 'tunnel' || ev.impact === 'explosion'
+            ? ev.impact
+            : 'explosion';
+        voxelPhysics.applyImpact({
+          worldX: ev.x,
+          worldY: ev.y,
+          worldZ: ev.z,
+          radius: ev.radius,
+          type: impact,
+        });
+        if (impact === 'explosion' || impact === 'ice') water.wake(ev.x, ev.z, 1.1);
+        explosionEmitter.emit(new THREE.Vector3(ev.x, ev.y + 0.4, ev.z), 8);
       }
     }
 
     for (const eid of standeeQuery(sim.world)) {
       const group = standeeRenderer.getStandee(eid);
       if (!group) continue;
-      const surfaceY = voxelWorld.getSurfaceHeight(Position.x[eid], Position.z[eid]);
+      if (Health.current[eid] <= 0) {
+        group.visible = false;
+        continue;
+      }
+      group.visible = true;
+      const unitId = UnitType.id[eid] ?? 0;
+      const flying = unitId === 123 || unitId === 134 || unitId === 143;
+      const aquatic = unitId === 102;
+      const surfaceY = flying
+        ? voxelWorld.getSurfaceHeight(Position.x[eid], Position.z[eid])
+        : voxelWorld.walkHeight(Position.x[eid], Position.z[eid], aquatic) + water.heightAt(Position.x[eid], Position.z[eid]);
+      if (!flying && voxelWorld.isWater(Position.x[eid], Position.z[eid]) && (frameCount & 3) === 0) {
+        water.wake(Position.x[eid], Position.z[eid], aquatic ? 0.12 : 0.28);
+      }
       Position.y[eid] = surfaceY;
       group.position.set(Position.x[eid], surfaceY, Position.z[eid]);
       standeeRenderer.setHealth(eid, Health.max[eid] > 0 ? Health.current[eid] / Health.max[eid] : 1);
@@ -342,6 +409,7 @@ async function boot() {
       mesh.position.set(Position.x[eid], surfaceY, Position.z[eid]);
     }
 
+    water.update(dt);
     explosionEmitter.update(dt);
     selectionBox.drawSelectionBox();
 
@@ -417,6 +485,71 @@ async function boot() {
     },
     getKeys: () => [...input.state.keys].sort(),
     setTarget: (x: number, y: number, z: number) => iso.setTarget(x, y, z),
+    setZoom: (z: number) => iso.setZoom(z),
+    /** Debug: force selected (or all player) units to attack nearest enemy unit. */
+    forceAttackNearest: () => {
+      const ids = selection.getSelectedIds();
+      const pool = ids.length > 0 ? ids : allUnitEids.filter(
+        (eid) => Faction.id[eid] === playerFaction && (Health.current[eid] ?? 0) > 0,
+      );
+      let foe = -1;
+      let bestD = Infinity;
+      for (const eid of allUnitEids) {
+        if ((Health.current[eid] ?? 0) <= 0) continue;
+        if (Faction.id[eid] === playerFaction) continue;
+        const dx = Position.x[eid] - Position.x[pool[0]];
+        const dz = Position.z[eid] - Position.z[pool[0]];
+        const d = dx * dx + dz * dz;
+        if (d < bestD) { bestD = d; foe = eid; }
+      }
+      if (foe < 0) return { foe: -1, attackers: 0 };
+      for (const eid of pool) {
+        // Close the gap so the hit lands this test
+        Position.x[eid] = Position.x[foe] + (Math.random() - 0.5) * 1.5;
+        Position.z[eid] = Position.z[foe] + (Math.random() - 0.5) * 1.5;
+        Target.hasTarget[eid] = 1;
+        Target.entity[eid] = foe;
+        Target.x[eid] = Position.x[foe];
+        Target.z[eid] = Position.z[foe];
+        Pathfinding.hasPath[eid] = 0;
+      }
+      return { foe, foeHp: Health.current[foe], attackers: pool.length, foeType: UnitType.id[foe] };
+    },
+    getHp: (eid: number) => Health.current[eid],
+    /** Advance sim manually (useful when rAF is throttled in background tabs). */
+    tickSim: (n = 30) => {
+      try {
+        sim.step(n);
+      } catch (e) {
+        return { error: String(e), tick: getMeta(sim.world).time.tick };
+      }
+      const meta = getMeta(sim.world);
+      return { tick: meta.time.tick, elapsed: meta.time.elapsed };
+    },
+    combatDiag: () => {
+      const ids = allUnitEids.filter((e) => Faction.id[e] === playerFaction && Health.current[e] > 0);
+      const sample = ids[0];
+      if (sample === undefined) return { none: true, frames: frameCount };
+      const foe = Target.entity[sample];
+      const dx = Position.x[foe] - Position.x[sample];
+      const dz = Position.z[foe] - Position.z[sample];
+      const meta = getMeta(sim.world);
+      return {
+        sample,
+        hasTarget: Target.hasTarget[sample],
+        foe,
+        foeHp: Health.current[foe],
+        dist: Math.sqrt(dx * dx + dz * dz),
+        range: Combat.range[sample],
+        cooldown: Combat.cooldown[sample],
+        damage: Combat.damage[sample],
+        atkHp: Health.current[sample],
+        tick: meta.time.tick,
+        elapsed: meta.time.elapsed,
+        frames: frameCount,
+        simWorldOk: !!meta,
+      };
+    },
     focus: () => container.focus({ preventScroll: true }),
     getSelection: () => selection.getSelectedInfos(),
     selectAllPlayer: () => {

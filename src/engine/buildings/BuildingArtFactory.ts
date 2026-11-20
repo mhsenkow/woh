@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BuildingVisual } from '../../game/buildings/BuildingDefinitions';
-import { PixelCanvas, RAMPS, type ShadeRamp } from '../art/PixelKit';
+import { PixelCanvas, RAMPS, type Hex, type ShadeRamp } from '../art/PixelKit';
 
 const W = 80;
 const H = 96;
@@ -24,6 +24,7 @@ export function createBuildingArtTexture(
   factionId: number,
   name: string,
   _size = 768,
+  buildingTypeId = 0,
 ): THREE.CanvasTexture {
   const px = new PixelCanvas(W, H);
   px.clear();
@@ -31,42 +32,47 @@ export function createBuildingArtTexture(
 
   const trim = FACTION_TRIM[factionId] ?? RAMPS.blueArmor;
 
-  switch (visual) {
-    case 'keep':
-      if (factionId === 2) paintPeachCastle(px);
-      else if (factionId === 3) paintBowserKeep(px);
-      else paintKeep(px, trim);
-      break;
-    case 'barracks':
-      if (factionId === 2) paintToadHouse(px);
-      else paintBarracks(px, trim);
-      break;
-    case 'forge':
-      if (factionId === 3) paintBillBlasterFactory(px);
-      else paintForge(px, trim);
-      break;
-    case 'tower': paintTower(px, trim, factionId); break;
-    case 'temple': paintTemple(px, trim); break;
-    case 'mine':
-      if (factionId === 2) paintWarpPipe(px);
-      else paintMine(px, trim);
-      break;
-    case 'wall': paintWall(px, trim); break;
-    case 'hive': paintHive(px, trim); break;
-    case 'pit': paintPit(px, trim); break;
-    case 'altar': paintAltar(px, trim, factionId); break;
-    case 'nest': paintNest(px, trim); break;
-    case 'vein': paintVein(px, trim); break;
-    case 'nexus': paintNexus(px, trim); break;
-    case 'shrine': paintShrine(px, trim); break;
-    case 'matrix': paintMatrix(px, trim); break;
-    case 'platform':
-      if (factionId === 3) paintAirshipDock(px);
-      else paintPlatform(px, trim, factionId);
-      break;
-    case 'crystal': paintCrystal(px, trim); break;
-    case 'dojo': paintDojo(px, trim); break;
-    default: paintBarracks(px, trim);
+  // Malice Horde — unique Zelda-evil silhouette per structure
+  if (factionId === 1 && paintMaliceBuilding(px, buildingTypeId, visual, trim)) {
+    // painted
+  } else {
+    switch (visual) {
+      case 'keep':
+        if (factionId === 2) paintPeachCastle(px);
+        else if (factionId === 3) paintBowserKeep(px);
+        else paintKeep(px, trim);
+        break;
+      case 'barracks':
+        if (factionId === 2) paintToadHouse(px);
+        else paintBarracks(px, trim);
+        break;
+      case 'forge':
+        if (factionId === 3) paintBillBlasterFactory(px);
+        else paintForge(px, trim);
+        break;
+      case 'tower': paintTower(px, trim, factionId); break;
+      case 'temple': paintTemple(px, trim); break;
+      case 'mine':
+        if (factionId === 2) paintWarpPipe(px);
+        else paintMine(px, trim);
+        break;
+      case 'wall': paintWall(px, trim); break;
+      case 'hive': paintHive(px, trim); break;
+      case 'pit': paintPit(px, trim); break;
+      case 'altar': paintAltar(px, trim, factionId); break;
+      case 'nest': paintNest(px, trim); break;
+      case 'vein': paintVein(px, trim); break;
+      case 'nexus': paintNexus(px, trim); break;
+      case 'shrine': paintShrine(px, trim); break;
+      case 'matrix': paintMatrix(px, trim); break;
+      case 'platform':
+        if (factionId === 3) paintAirshipDock(px);
+        else paintPlatform(px, trim, factionId);
+        break;
+      case 'crystal': paintCrystal(px, trim); break;
+      case 'dojo': paintDojo(px, trim); break;
+      default: paintBarracks(px, trim);
+    }
   }
 
   paintPlaque(px, name);
@@ -332,24 +338,490 @@ function paintWall(px: PixelCanvas, trim: ShadeRamp) {
   }
 }
 
+/**
+ * Route every Malice building id to a distinct Zelda-evil silhouette.
+ * Returns true if handled.
+ */
+function paintMaliceBuilding(
+  px: PixelCanvas,
+  buildingTypeId: number,
+  visual: BuildingVisual,
+  trim: ShadeRamp,
+): boolean {
+  switch (buildingTypeId) {
+    case 210: paintCalamityCitadel(px); return true;
+    case 211: paintMalicePit(px); return true;
+    case 212: paintMoblinWarCamp(px); return true;
+    case 213: paintBloodMoonAltar(px); return true;
+    case 214: paintGuardianNest(px); return true;
+    case 215: paintMaliceVein(px); return true;
+    case 216: paintGloomTumor(px); return true;
+    case 217: paintSpineBloom(px); return true;
+    case 218: paintBlightNest(px); return true;
+    case 219: paintGanonCocoon(px); return true;
+    default:
+      // Fallback by visual category
+      if (visual === 'hive') { paintCalamityCitadel(px); return true; }
+      if (visual === 'pit') { paintMalicePit(px); return true; }
+      if (visual === 'altar') { paintBloodMoonAltar(px); return true; }
+      if (visual === 'nest') { paintMoblinWarCamp(px); return true; }
+      if (visual === 'vein') { paintMaliceVein(px); return true; }
+      void trim;
+      return false;
+  }
+}
+
+/** 210 — Calamity Citadel: Ganon's Castle / Hyrule Castle calamity HQ. */
+function paintCalamityCitadel(px: PixelCanvas) {
+  const malice = RAMPS.redMalice;
+  const stone = RAMPS.darkArmor;
+  const gloom: ShadeRamp = { outline: '#100018', dark: '#280820', mid: '#501030', light: '#882040', hilite: '#c04058' };
+
+  // Twisted fortress base (Ganon's Castle DNA)
+  px.bodyBox(12, 50, 56, 32, stone, 2);
+  brickHatch(px, 14, 52, 52, 28, stone);
+  px.grit(14, 52, 52, 28, malice.dark, 0.12);
+  // Malice vein cracks up the walls
+  for (const [x, y] of [[20, 56], [21, 60], [22, 64], [58, 54], [57, 58], [56, 62]] as const) {
+    px.set(x, y, malice.light);
+  }
+
+  // Twin twisted towers with malice flame tips
+  for (const x of [8, 58]) {
+    px.bodyBox(x, 24, 16, 58, stone, 1);
+    brickHatch(px, x + 1, 28, 14, 40, stone);
+    for (let i = 0; i < 18; i++) {
+      const half = 8 - Math.floor(i / 3);
+      for (let dx = -half; dx <= half; dx++) {
+        px.set(x + 8 + dx, 24 - i, i < 2 ? malice.outline : (Math.abs(dx) > half - 2 ? malice.dark : malice.mid));
+      }
+    }
+    // Arrow-slit windows with malice glow
+    px.rect(x + 6, 36, 4, 10, '#100808');
+    px.set(x + 7, 38, malice.hilite);
+    px.rect(x + 6, 52, 4, 8, '#100808');
+    px.set(x + 7, 54, malice.light);
+  }
+
+  // Central Calamity cocoon / hog-beast (BOTW Blight HQ tell)
+  blob(px, 40, 46, 18, malice);
+  blob(px, 40, 38, 12, gloom);
+  blob(px, 40, 42, 8, stone);
+  // Glowing eye of Calamity
+  px.circle(40, 40, 7, malice.mid);
+  px.circle(40, 40, 4, malice.hilite);
+  px.set(40, 39, '#ffffff');
+  px.set(38, 38, '#ff4060');
+
+  // Spire of gloom piercing sky
+  for (let i = 0; i < 32; i++) {
+    const half = 6 - Math.floor(i / 6);
+    for (let x = -half; x <= half; x++) {
+      px.set(40 + x, 32 - i, x === 0 ? malice.hilite : (Math.abs(x) === half ? malice.outline : malice.light));
+    }
+  }
+  px.circle(40, 2, 3, '#ffe0e8');
+
+  // Gate maw (beast mouth entrance)
+  px.ellipseFill(40, 72, 14, 12, '#100808');
+  px.ellipseFill(40, 70, 10, 8, malice.dark);
+  px.ellipseFill(40, 68, 6, 4, gloom.mid);
+  // Fang teeth
+  for (const x of [32, 36, 44, 48]) px.set(x, 66, '#e8d8b0');
+  // Malice drips from battlements
+  for (let i = 0; i < 10; i++) {
+    px.set(24 + i * 4, 80 + (i % 4), i % 2 ? malice.light : malice.mid);
+  }
+}
+
+/** 211 — Malice Pit: Zerg spawning pool / BOTW malice puddle bowl. */
+function paintMalicePit(px: PixelCanvas) {
+  const malice = RAMPS.redMalice;
+  // Outer gloom stain
+  px.ellipseFill(40, 80, 34, 12, '#0c0408');
+  px.ellipseFill(40, 78, 30, 10, '#140810');
+  px.ellipseFill(40, 74, 26, 9, malice.dark);
+  px.ellipseFill(40, 72, 20, 7, malice.mid);
+  px.ellipseFill(40, 70, 14, 5, malice.hilite);
+  px.ellipseFill(40, 69, 8, 3, '#ff90a0');
+  px.set(40, 68, '#ffffff');
+
+  // Bubbling Bokoblin / Gloom larva orbs
+  px.circle(26, 56, 8, malice.mid);
+  px.circle(26, 54, 4, malice.hilite);
+  px.set(26, 52, '#ffffff');
+  px.circle(50, 52, 9, malice.light);
+  px.circle(50, 50, 4, '#ffb0b8');
+  px.set(50, 48, '#ffffff');
+  px.circle(40, 46, 7, malice.mid);
+  px.circle(40, 44, 3, malice.hilite);
+  // Tiny bat-ear hints on larva
+  px.set(22, 50, malice.light);
+  px.set(30, 50, malice.light);
+
+  // Bone / skull rim (Moblin camp aesthetic)
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const bx = 40 + Math.round(Math.cos(a) * 28);
+    const by = 74 + Math.round(Math.sin(a) * 8);
+    px.circle(bx, by, 3, RAMPS.paper.mid);
+    if (i % 3 === 0) {
+      px.set(bx - 1, by - 1, '#101018');
+      px.set(bx + 1, by - 1, '#101018');
+    }
+  }
+  // Rising steam / malice vapor
+  for (let i = 0; i < 6; i++) {
+    px.set(30 + i * 4, 38 - i * 2, malice.light);
+  }
+}
+
+/** 212 — Moblin War Camp: classic LoZ Moblin fortress / BOTW bokoblin hideout. */
+function paintMoblinWarCamp(px: PixelCanvas) {
+  const wood = RAMPS.wood;
+  const skin: ShadeRamp = { outline: '#1c2410', dark: '#486030', mid: '#688048', light: '#90a860', hilite: '#b0c880' };
+  const malice = RAMPS.redMalice;
+
+  // Palisade stake wall
+  for (let i = 0; i < 14; i++) {
+    const x = 8 + i * 5;
+    const h = 32 + (i % 3) * 4;
+    px.rect(x, 82 - h, 4, h, wood.mid);
+    px.rect(x, 82 - h, 1, h, wood.dark);
+    px.rect(x + 1, 80 - h, 2, 5, wood.light); // sharpened tip
+  }
+  // Rope lashing
+  px.rect(10, 60, 60, 2, wood.dark);
+  px.rect(10, 70, 60, 2, wood.dark);
+
+  // Hide tent / bone hut
+  px.bodyBox(22, 50, 36, 28, wood, 2);
+  for (let i = 0; i < 16; i++) {
+    const half = 20 - Math.floor(i * 1.15);
+    for (let x = 40 - half; x <= 40 + half; x++) {
+      px.set(x, 50 - i, i < 2 ? skin.outline : (x < 40 ? skin.dark : skin.mid));
+    }
+  }
+  // Hide folds
+  px.grit(24, 38, 32, 20, skin.dark, 0.1);
+
+  // Tall skull totem pole
+  px.rect(36, 22, 5, 26, wood.dark);
+  px.circle(38, 20, 9, RAMPS.paper.mid);
+  px.circle(38, 20, 7, RAMPS.paper.light);
+  px.set(34, 18, '#101018');
+  px.set(42, 18, '#101018');
+  px.rect(34, 24, 8, 2, '#101018');
+  // Horns on totem skull
+  px.set(30, 14, RAMPS.paper.mid);
+  px.set(46, 14, RAMPS.paper.mid);
+
+  // Malice war banner
+  px.rect(58, 24, 3, 36, malice.mid);
+  px.rect(61, 24, 14, 12, malice.light);
+  px.rect(61, 24, 14, 2, malice.hilite);
+  px.circle(68, 30, 3, RAMPS.paper.hilite); // skull mark
+  px.set(67, 29, '#101018');
+  px.set(69, 29, '#101018');
+
+  // Gate door
+  px.rect(32, 64, 16, 16, '#1a1008');
+  px.rect(34, 66, 12, 2, wood.mid);
+  px.set(38, 72, RAMPS.gold.mid);
+  // Watch fire
+  px.circle(16, 44, 4, '#ff8040');
+  px.circle(16, 42, 2, '#ffe040');
+}
+
+/** 213 — Blood Moon Altar: BOTW/TotK Blood Moon ritual circle. */
+function paintBloodMoonAltar(px: PixelCanvas) {
+  const malice = RAMPS.redMalice;
+  // Stone dais with steps
+  px.bodyBox(12, 72, 56, 12, RAMPS.darkArmor, 1);
+  brickHatch(px, 14, 74, 52, 8, RAMPS.darkArmor);
+  px.bodyBox(18, 66, 44, 8, RAMPS.stone, 1);
+
+  // Twin ritual pillars with malice caps
+  for (const x of [14, 56]) {
+    px.bodyBox(x, 30, 12, 42, RAMPS.stone, 1);
+    brickHatch(px, x + 1, 34, 10, 30, RAMPS.stone);
+    px.rect(x + 2, 28, 8, 6, malice.mid);
+    px.rect(x + 3, 26, 6, 3, malice.hilite);
+    // Glowing rune slits
+    px.set(x + 5, 40, malice.light);
+    px.set(x + 5, 50, malice.light);
+  }
+
+  // Massive Blood Moon (the defining silhouette)
+  px.circle(40, 28, 18, '#400818');
+  px.circle(40, 28, 15, malice.dark);
+  px.circle(40, 28, 12, malice.mid);
+  px.circle(40, 28, 8, malice.light);
+  px.circle(34, 22, 5, malice.hilite);
+  px.circle(36, 20, 2, '#ffe0e8');
+  px.circleOutline(40, 28, 19, '#ff4050');
+  px.circleOutline(40, 28, 21, '#801028');
+
+  // Ritual rune circle on floor
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    px.set(40 + Math.round(Math.cos(a) * 16), 76 + Math.round(Math.sin(a) * 5), malice.hilite);
+    if (i % 3 === 0) px.set(40 + Math.round(Math.cos(a) * 12), 76 + Math.round(Math.sin(a) * 4), '#ffe040');
+  }
+  // Offering bowl with gloom
+  px.ellipseFill(40, 62, 10, 5, '#100808');
+  px.ellipseFill(40, 61, 7, 3, malice.light);
+  px.set(40, 60, '#ffffff');
+}
+
+/** 214 — Corrupted Guardian Nest: Sheikah tech hatchery + Calamity corruption. */
+function paintGuardianNest(px: PixelCanvas) {
+  const shell: ShadeRamp = { outline: '#1a2820', dark: '#3a5850', mid: '#588078', light: '#80a8a0', hilite: '#b0d0c8' };
+  const ancient = '#48e0b0';
+  const malice = RAMPS.redMalice;
+
+  // Ancient Sheikah pedestal / docking bay
+  px.bodyBox(18, 62, 44, 22, shell, 2);
+  brickHatch(px, 20, 64, 40, 18, shell);
+  px.grit(20, 64, 40, 18, shell.dark, 0.12);
+  // Malice pooled at base
+  px.ellipseFill(40, 82, 24, 6, malice.dark);
+  px.ellipseFill(40, 80, 16, 4, malice.mid);
+
+  // Corrupted Guardian dish docked on nest
+  for (let j = -16; j <= 12; j++) {
+    const half = 18 - Math.floor(Math.abs(j) * 0.5);
+    for (let i = -half; i <= half; i++) {
+      const edge = Math.abs(i) === half || j === -16;
+      const ring = Math.hypot(i, j);
+      let hex: Hex = i < 0 ? shell.dark : shell.mid;
+      if (edge) hex = shell.outline;
+      else if (ring < 6) hex = shell.light;
+      px.set(40 + i, 46 + j, hex);
+    }
+  }
+  px.circleOutline(40, 46, 12, ancient);
+  px.circleOutline(40, 46, 8, '#28a080');
+  px.circleOutline(40, 46, 5, malice.mid);
+  // Malice cracks on dish
+  for (const [x, y] of [[32, 40], [34, 44], [48, 42], [46, 48]] as const) {
+    px.set(x, y, malice.light);
+  }
+
+  // Eye stalk upright, charging
+  px.rect(37, 14, 6, 30, shell.mid);
+  px.rect(38, 14, 4, 30, shell.light);
+  px.rect(37, 24, 6, 1, ancient);
+  px.sphere(40, 12, 10, shell);
+  px.circle(40, 12, 7, malice.mid);
+  px.circle(40, 12, 4, malice.hilite);
+  px.set(40, 11, '#ffffff');
+  px.rect(39, 2, 2, 5, '#ff4060');
+
+  // Legs folded around nest (docked stalker)
+  for (const [x, y] of [[14, 56], [26, 72], [54, 72], [66, 56], [16, 40], [64, 40]] as const) {
+    px.limb(40, 48, x, y, 1, shell);
+    px.circle(x, y, 3, shell.dark);
+    px.set(x, y - 1, ancient);
+  }
+}
+
+/** 215 — Malice Vein: creep extractor / gloom siphon crystal. */
+function paintMaliceVein(px: PixelCanvas) {
+  const malice = RAMPS.redMalice;
+  const gloom: ShadeRamp = { outline: '#100018', dark: '#280820', mid: '#501030', light: '#882040', hilite: '#c04058' };
+
+  // Rooted gloom base
+  blob(px, 40, 74, 16, gloom);
+  blob(px, 30, 68, 9, RAMPS.darkArmor);
+  blob(px, 50, 70, 8, malice);
+  px.ellipseFill(40, 82, 18, 5, '#0c0408');
+
+  // Triple siphon crystals (extractor tell)
+  for (const [x, h, lean] of [[32, 36, -0.15], [40, 46, 0], [50, 32, 0.18]] as const) {
+    for (let i = 0; i < h; i++) {
+      const lx = x + Math.round(i * lean);
+      const w = i < 4 ? 2 : (i % 5 === 0 ? 2 : 1);
+      for (let dx = -w; dx <= w; dx++) {
+        px.set(lx + dx, 70 - i, i < 3 ? malice.outline : (dx === 0 ? malice.hilite : (dx < 0 ? malice.dark : malice.light)));
+      }
+    }
+  }
+  // Harvest glow at tips
+  px.circle(40, 24, 5, malice.hilite);
+  px.set(40, 22, '#ffffff');
+  px.circle(28, 34, 3, malice.light);
+  px.circle(54, 38, 3, malice.light);
+  // Drip veins
+  for (let i = 0; i < 6; i++) px.set(36 + i, 78 + (i % 2), malice.mid);
+}
+
+/** 216 — Gloom Tumor: TotK gloom root node / forward creep tumor. */
+function paintGloomTumor(px: PixelCanvas) {
+  const gloom: ShadeRamp = { outline: '#100018', dark: '#280820', mid: '#501030', light: '#882040', hilite: '#c04058' };
+  const malice = RAMPS.redMalice;
+
+  // Bulging tumor mass
+  blob(px, 40, 60, 18, gloom);
+  blob(px, 26, 68, 10, RAMPS.darkArmor);
+  blob(px, 54, 66, 10, gloom);
+  blob(px, 40, 70, 12, malice);
+  px.grit(24, 50, 32, 28, '#080010', 0.2);
+
+  // Eye cluster (gloom watching)
+  px.circle(40, 56, 6, malice.mid);
+  px.circle(40, 56, 3, malice.hilite);
+  px.set(40, 55, '#ffffff');
+  px.circle(30, 62, 4, malice.light);
+  px.set(30, 61, '#ffffff');
+  px.circle(50, 60, 4, malice.hilite);
+  px.set(50, 59, '#ffffff');
+  px.circle(36, 68, 2, malice.mid);
+  px.circle(44, 66, 2, malice.light);
+
+  // Root tendrils spreading creep
+  for (let a = 0; a < 8; a++) {
+    const ang = (a / 8) * Math.PI * 2;
+    for (let d = 0; d < 16; d++) {
+      px.set(
+        40 + Math.round(Math.cos(ang) * (10 + d)),
+        72 + Math.round(Math.sin(ang) * (5 + d * 0.45)),
+        d < 3 ? gloom.hilite : (d % 2 ? gloom.mid : gloom.light),
+      );
+    }
+  }
+}
+
+/** 217 — Spine Bloom: Zerg spine crawler / malice thorn turret. */
+function paintSpineBloom(px: PixelCanvas) {
+  const malice = RAMPS.redMalice;
+  // Creep base pad
+  px.ellipseFill(40, 80, 26, 8, '#140810');
+  blob(px, 40, 72, 14, malice);
+  blob(px, 32, 76, 7, RAMPS.darkArmor);
+  blob(px, 48, 76, 7, RAMPS.darkArmor);
+
+  // Segmented vertical spine shaft
+  for (let i = 0; i < 44; i++) {
+    const half = 4 + (i % 7 === 0 ? 3 : 0);
+    for (let x = -half; x <= half; x++) {
+      px.set(40 + x, 68 - i, Math.abs(x) === half ? malice.outline : (x < 0 ? malice.dark : malice.mid));
+    }
+    if (i % 7 === 0) {
+      px.set(40 - half - 1, 68 - i, malice.hilite);
+      px.set(40 + half + 1, 68 - i, malice.hilite);
+    }
+  }
+
+  // Thorn petal crown (firing bloom)
+  for (let a = 0; a < 7; a++) {
+    const ang = -Math.PI / 2 + (a - 3) * 0.4;
+    for (let d = 0; d < 18; d++) {
+      const x = 40 + Math.round(Math.cos(ang) * d);
+      const y = 28 + Math.round(Math.sin(ang) * d);
+      px.set(x, y, d < 3 ? malice.hilite : (d % 2 ? malice.light : malice.mid));
+      if (d === 17) px.set(x, y, '#ffe0e8');
+    }
+  }
+  px.circle(40, 26, 5, '#ffe0e8');
+  px.set(40, 24, '#ffffff');
+}
+
+/** 218 — Blight Nest: satellite hatchery / Divine Beast Blight shrine. */
+function paintBlightNest(px: PixelCanvas) {
+  const malice = RAMPS.redMalice;
+  const gloom: ShadeRamp = { outline: '#100018', dark: '#280820', mid: '#501030', light: '#882040', hilite: '#c04058' };
+
+  // Organic blight mass
+  blob(px, 40, 64, 22, malice);
+  blob(px, 22, 54, 12, RAMPS.darkArmor);
+  blob(px, 58, 56, 12, RAMPS.darkArmor);
+  blob(px, 40, 48, 10, gloom);
+  px.grit(20, 48, 40, 30, gloom.dark, 0.14);
+
+  // Blight Ganon mask face (Waterblight / Fireblight DNA)
+  px.ellipseFill(40, 50, 14, 16, RAMPS.darkArmor.mid);
+  px.ellipseFill(40, 50, 10, 12, RAMPS.darkArmor.dark);
+  // Glowing blight eyes
+  px.circle(32, 46, 4, malice.hilite);
+  px.circle(48, 46, 4, malice.hilite);
+  px.set(32, 45, '#ffffff');
+  px.set(48, 45, '#ffffff');
+  // Maw
+  px.rect(32, 56, 16, 4, '#100808');
+  px.rect(34, 57, 12, 1, malice.light);
+  // Curved blight horns
+  for (let i = 0; i < 14; i++) {
+    px.set(26 - i, 38 - Math.floor(i * 0.7), malice.mid);
+    px.set(27 - i, 38 - Math.floor(i * 0.7), malice.light);
+    px.set(54 + i, 38 - Math.floor(i * 0.7), malice.mid);
+    px.set(53 + i, 38 - Math.floor(i * 0.7), malice.light);
+  }
+  // Creep skirt drips
+  for (let i = 0; i < 12; i++) {
+    px.set(22 + i * 3, 76 + (i % 5), i % 2 ? malice.light : malice.mid);
+  }
+  // Mini larva buds
+  px.circle(24, 68, 4, malice.mid);
+  px.circle(56, 70, 4, malice.light);
+}
+
+/** 219 — Ganon's Cocoon: morph chamber / Calamity chrysalis. */
+function paintGanonCocoon(px: PixelCanvas) {
+  const malice = RAMPS.redMalice;
+  const gloom: ShadeRamp = { outline: '#100018', dark: '#280820', mid: '#501030', light: '#882040', hilite: '#c04058' };
+
+  // Chrysalis oval membrane
+  for (let j = -30; j <= 28; j++) {
+    const half = Math.floor(20 * Math.sqrt(Math.max(0, 1 - (j / 32) ** 2)));
+    for (let i = -half; i <= half; i++) {
+      const edge = Math.abs(i) === half || Math.abs(j) === 30;
+      const vein = (i + j * 2) % 6 === 0;
+      let hex: Hex = malice.mid;
+      if (edge) hex = malice.outline;
+      else if (vein) hex = malice.hilite;
+      else if (i < -5) hex = malice.dark;
+      else if (i > 6) hex = malice.light;
+      else if (Math.abs(j) > 18) hex = gloom.mid;
+      px.set(40 + i, 48 + j, hex);
+    }
+  }
+  // Beast / Calamity silhouette within (boar-king morph)
+  px.ellipseFill(40, 52, 10, 16, '#1a0810');
+  px.circle(40, 38, 7, '#2a1018');
+  // Horn hints inside membrane
+  px.set(32, 30, '#1a0810');
+  px.set(48, 30, '#1a0810');
+  // Glowing eye through membrane
+  px.circle(40, 40, 4, '#ffe040');
+  px.circle(40, 40, 2, '#ffffff');
+  px.set(38, 38, malice.hilite);
+  // Membrane stress cracks
+  for (const [x, y] of [[30, 44], [31, 48], [50, 46], [49, 52]] as const) {
+    px.set(x, y, gloom.hilite);
+  }
+  // Base roots / morph cradle
+  blob(px, 40, 80, 18, RAMPS.darkArmor);
+  blob(px, 28, 78, 8, gloom);
+  blob(px, 52, 78, 8, gloom);
+  for (let i = 0; i < 6; i++) {
+    px.set(28 + i * 4, 82, malice.mid);
+  }
+}
+
 function paintHive(px: PixelCanvas, trim: ShadeRamp) {
+  // Generic organic hive (non-Malice callers); Malice uses paintCalamityCitadel
   blob(px, 40, 60, 24, trim);
   blob(px, 24, 46, 13, RAMPS.darkArmor);
   blob(px, 56, 48, 12, RAMPS.darkArmor);
   blob(px, 40, 42, 10, trim);
   px.grit(20, 40, 40, 40, trim.dark, 0.12);
-  // Spire with malice drip
   for (let i = 0; i < 30; i++) {
     const half = 6 - Math.floor(i / 6);
     for (let x = -half; x <= half; x++) {
       px.set(40 + x, 38 - i, x === 0 ? trim.hilite : trim.light);
     }
   }
-  for (let i = 0; i < 8; i++) {
-    px.set(36 + (i % 3), 58 + i, trim.hilite);
-    px.set(44 - (i % 2), 50 + i, trim.mid);
-  }
-  // Eye sockets
   px.circle(32, 52, 4, '#101018');
   px.circle(48, 52, 4, '#101018');
   px.set(32, 52, trim.hilite);
@@ -366,15 +838,16 @@ function paintPit(px: PixelCanvas, trim: ShadeRamp) {
 }
 
 function paintAltar(px: PixelCanvas, trim: ShadeRamp, factionId = 0) {
-  px.bodyBox(20, 70, 40, 12, RAMPS.darkArmor, 1);
-  for (const x of [22, 52]) px.bodyBox(x, 40, 8, 32, trim, 1);
   if (factionId === 5) {
-    // Dark Star Rod altar
+    px.bodyBox(20, 70, 40, 12, RAMPS.darkArmor, 1);
+    for (const x of [22, 52]) px.bodyBox(x, 40, 8, 32, trim, 1);
     px.circle(40, 34, 12, RAMPS.void.mid);
     px.circle(40, 34, 7, RAMPS.void.hilite);
     px.circle(40, 34, 3, '#ffffff');
     star(px, 40, 18, 6, RAMPS.void);
   } else {
+    px.bodyBox(20, 70, 40, 12, RAMPS.darkArmor, 1);
+    for (const x of [22, 52]) px.bodyBox(x, 40, 8, 32, trim, 1);
     px.circle(40, 34, 12, trim.mid);
     px.circle(40, 34, 8, trim.light);
     px.circle(36, 30, 3, trim.hilite);
@@ -383,10 +856,14 @@ function paintAltar(px: PixelCanvas, trim: ShadeRamp, factionId = 0) {
 }
 
 function paintNest(px: PixelCanvas, trim: ShadeRamp) {
+  // Void / generic nest (Scarfy etc.) — Malice uses dedicated camp/guardian painters
   blob(px, 40, 62, 18, RAMPS.wood);
+  blob(px, 40, 54, 10, trim);
   for (const x of [28, 40, 52]) {
     for (let i = 0; i < 18; i++) px.set(x + (i % 3) - 1, 55 - i, trim.mid);
   }
+  px.circle(40, 58, 4, trim.hilite);
+  px.set(40, 57, '#ffffff');
 }
 
 function paintVein(px: PixelCanvas, trim: ShadeRamp) {

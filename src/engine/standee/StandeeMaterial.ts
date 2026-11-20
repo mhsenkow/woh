@@ -18,7 +18,7 @@ const DEFAULT_MAT_CONFIG: StandeeMaterialConfig = {
 
 export function createStandeeMaterial(
   config: Partial<StandeeMaterialConfig> = {},
-): THREE.MeshPhysicalMaterial {
+): THREE.Material {
   const cfg = { ...DEFAULT_MAT_CONFIG, ...config };
 
   if (cfg.map) {
@@ -26,29 +26,26 @@ export function createStandeeMaterial(
     cfg.map.minFilter = THREE.NearestFilter;
     cfg.map.generateMipmaps = false;
     cfg.map.needsUpdate = true;
+    cfg.map.colorSpace = THREE.SRGBColorSpace;
   }
 
-  const mat = new THREE.MeshPhysicalMaterial({
-    color: cfg.map ? 0xffffff : cfg.baseColor,
-    map: cfg.map ?? null,
-    roughness: cfg.isElite ? 0.35 : 0.7,
-    metalness: cfg.isElite ? 0.25 : 0.0,
-    clearcoat: cfg.isElite ? 0.55 : 0.15,
-    clearcoatRoughness: cfg.isElite ? 0.2 : 0.4,
+  // Unlit nearest-neighbor so the SNES pixels stay the authored cutout,
+  // sitting on the stippled landscape instead of being relit like a mesh.
+  if (cfg.map) {
+    return new THREE.MeshBasicMaterial({
+      map: cfg.map,
+      color: 0xffffff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.5,
+      depthWrite: true,
+    });
+  }
+
+  return new THREE.MeshLambertMaterial({
+    color: cfg.baseColor,
     side: THREE.DoubleSide,
-    transparent: true,
-    alphaTest: 0.15,
-    depthWrite: true,
-    sheen: cfg.isElite ? 0.8 : 0.15,
-    sheenColor: cfg.isElite ? new THREE.Color(0xffe8a0) : new THREE.Color(0xfff5e0),
-    sheenRoughness: 0.35,
   });
-
-  if (cfg.damageLevel > 0) {
-    mat.roughness = Math.min(1.0, mat.roughness + cfg.damageLevel * 0.15);
-  }
-
-  return mat;
 }
 
 export const FACTION_COLORS = {

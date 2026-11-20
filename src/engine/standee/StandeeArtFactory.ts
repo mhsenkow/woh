@@ -12,6 +12,7 @@ export type StandeeArtKind =
   | 'moblin-malice'
   | 'lizalfos-malice'
   | 'guardian-malice'
+  | 'gloom-malice'
   | 'hero-mushroom'
   | 'toad-mushroom'
   | 'guard-mushroom'
@@ -58,6 +59,7 @@ export function createStandeeArtTexture(kind: StandeeArtKind, _size = 512): THRE
     case 'moblin-malice': paintMoblin(px); break;
     case 'lizalfos-malice': paintLizalfos(px); break;
     case 'guardian-malice': paintGuardian(px); break;
+    case 'gloom-malice': paintGloomSpawn(px); break;
     case 'hero-mushroom': paintMario(px); break;
     case 'toad-mushroom': paintToad(px); break;
     case 'guard-mushroom': paintMushroomGuard(px); break;
@@ -107,10 +109,11 @@ export function artKindForUnit(unitTypeId: number, isElite: boolean, factionId: 
     case 101: return 'siege-hyrule';
     case 102: return 'swimmer-hyrule';
     case 104: return 'healer-hyrule';
-    case 110: case 114: return 'bokoblin-malice';
+    case 110: return 'bokoblin-malice';
     case 111: return 'moblin-malice';
     case 112: return 'lizalfos-malice';
     case 113: return 'guardian-malice';
+    case 114: return 'gloom-malice';
     case 120: return 'toad-mushroom';
     case 121: return 'guard-mushroom';
     case 122: return 'hammerbro-mushroom';
@@ -354,164 +357,496 @@ function paintZora(px: PixelCanvas) {
   px.rect(49, 22, 4, 5, RAMPS.silver.hilite);
 }
 
+/**
+ * Ganondorf — Gerudo King across Zelda eras:
+ * OoT nose-jewel crown, TP black armor, TotK gloom veins,
+ * classic boar tusks (Ganon DNA), Demise blade, Triforce of Power brand.
+ */
 function paintGanon(px: PixelCanvas) {
   const armor = RAMPS.darkArmor;
-  const skin = RAMPS.skin;
+  const skin: ShadeRamp = { outline: '#3a2010', dark: '#a86838', mid: '#c88850', light: '#e0a870', hilite: '#f0c890' };
+  const malice = RAMPS.redMalice;
+  const gold = RAMPS.gold;
+  const gloom: ShadeRamp = { outline: '#100018', dark: '#280820', mid: '#501030', light: '#882040', hilite: '#c04058' };
+
+  // Heavy greaves + clawed sabatons
+  px.limb(24, 90, 22, 68, 4, armor);
+  px.limb(40, 90, 42, 68, 4, armor);
+  px.bodyBox(18, 82, 12, 9, armor, 1);
+  px.bodyBox(34, 82, 12, 9, armor, 1);
+  px.set(20, 84, gold.mid);
+  px.set(42, 84, gold.mid);
+  px.set(18, 88, malice.light);
+  px.set(46, 88, malice.light);
+
+  // Torn malice / Phantom Ganon cape (deep crimson → gloom)
+  for (let j = 0; j < 44; j++) {
+    for (let i = -22; i <= 22; i++) {
+      if (Math.abs(i) > 13 + j / 2.2) continue;
+      if (j > 32 && ((i + j * 2) % 6 === 0 || (i - j) % 7 === 0)) continue; // torn hem
+      const edge = Math.abs(i) > 11 + j / 3;
+      const deep = i < -6 || j > 28;
+      px.set(32 + i, 42 + j, edge ? malice.outline : (deep ? gloom.dark : '#4a1020'));
+    }
+  }
+  px.grit(12, 48, 40, 34, malice.dark, 0.14);
+  // Cape clasp
+  px.circle(32, 44, 3, gold.mid);
+  px.set(32, 43, malice.hilite);
+
+  // Cuirass — TP black plate + Gerudo filigree
+  px.bodyBox(15, 38, 34, 34, armor, 2);
+  px.bandShade(17, 40, 30, 28, armor);
+  px.rect(22, 46, 20, 16, armor.light);
+  // TotK gloom vein cracks
+  for (const [x, y] of [[22, 44], [23, 48], [24, 52], [25, 56], [26, 60], [40, 44], [41, 48], [42, 52], [43, 56], [44, 60]] as const) {
+    px.set(x, y, malice.light);
+    px.set(x + 1, y + 1, gloom.mid);
+  }
+  // Triforce of Power brand (inverted glow)
+  px.set(32, 50, gold.hilite);
+  px.set(31, 52, gold.mid); px.set(32, 52, gold.hilite); px.set(33, 52, gold.mid);
+  px.set(30, 54, gold.dark); px.set(31, 54, gold.mid); px.set(32, 54, gold.hilite);
+  px.set(33, 54, gold.mid); px.set(34, 54, gold.dark);
+  // Twinrova dual-gem
+  px.circle(26, 48, 2, '#ff6040');
+  px.circle(38, 48, 2, '#40a0ff');
+  px.circle(32, 58, 3, gold.mid);
+  px.set(32, 57, malice.hilite);
+
+  // Massive Gerudo arms + spiked bracers
+  px.limb(15, 44, 6, 68, 5, skin);
+  px.limb(49, 44, 58, 68, 5, skin);
+  px.sphere(5, 70, 6, skin);
+  px.sphere(59, 70, 6, skin);
+  px.rect(4, 56, 8, 5, armor.mid);
+  px.rect(52, 56, 8, 5, armor.mid);
+  for (const x of [5, 8, 53, 56]) px.set(x, 54, gold.hilite);
+
+  // Blade of Demise / Greatsword of Demise
+  px.rect(54, 10, 5, 60, RAMPS.silver.dark);
+  px.rect(55, 10, 2, 60, RAMPS.silver.mid);
+  px.rect(56, 10, 1, 60, '#c8d0d8');
+  // Malice-wrapped hilt
+  px.rect(52, 62, 9, 6, malice.mid);
+  px.rect(53, 61, 7, 1, malice.hilite);
+  px.rect(55, 68, 3, 10, armor.mid);
+  px.circle(56, 10, 3, '#ffffff');
+  px.set(56, 8, malice.light);
+
+  // Head — Gerudo king + boar DNA
+  px.sphere(32, 28, 12, skin);
+  // Wild crimson mane (OoT spikes + TP volume)
+  px.hairCap(32, 24, 15, 20, malice, true);
+  for (let i = -16; i <= 16; i++) {
+    if (Math.abs(i) % 2 === 0) {
+      const tip = 6 + (Math.abs(i) % 5);
+      for (let j = 0; j < tip; j++) {
+        px.set(32 + i + (j % 2) - 1, 6 + j, j < 2 ? malice.hilite : (j < 4 ? malice.light : malice.mid));
+      }
+    }
+  }
+  // Boar tusks (classic Ganon silhouette tell)
+  px.rect(20, 34, 4, 7, '#fff0e0');
+  px.rect(41, 34, 4, 7, '#fff0e0');
+  px.set(20, 40, skin.dark);
+  px.set(44, 40, skin.dark);
+  px.set(21, 34, '#ffffff');
+  px.set(43, 34, '#ffffff');
+  // Glowing malice / gloom eyes
+  paintGlowEyes(px, 25, 26, 37, 26, '#ffe040');
+  px.set(26, 25, malice.hilite);
+  px.set(38, 25, malice.hilite);
+  // Fierce snarl
+  px.rect(26, 34, 12, 3, skin.dark);
+  px.set(27, 35, '#fff8f0');
+  px.set(30, 35, '#fff8f0');
+  px.set(33, 35, '#fff8f0');
+  px.set(36, 35, '#fff8f0');
+  // OoT nose jewel + Gerudo earrings
+  px.circle(32, 30, 2, gold.hilite);
+  px.set(32, 29, malice.light);
+  px.circle(32, 16, 3, gold.hilite);
+  px.set(32, 15, malice.light);
+  px.set(18, 30, gold.mid);
+  px.set(46, 30, gold.mid);
+}
+
+/**
+ * Bokoblin — BOTW/TotK red-tribe pig grubber:
+ * bat ears, horn stubs, bone club, scrap shield, rope loincloth, clawed feet.
+ * Reads as the classic swarm fodder of the Malice Horde.
+ */
+function paintBokoblin(px: PixelCanvas) {
+  // BOTW red Bokoblin skin (warmer than Moblin olive)
+  const skin: ShadeRamp = { outline: '#3a1810', dark: '#a04028', mid: '#c85838', light: '#e07850', hilite: '#f0a078' };
+  const snout: ShadeRamp = { outline: '#401810', dark: '#b04830', mid: '#d06848', light: '#e88868', hilite: '#f8b090' };
+
+  // Digging claw feet
+  px.limb(26, 90, 24, 74, 2, skin);
+  px.limb(38, 90, 40, 74, 2, skin);
+  px.rect(20, 88, 10, 3, skin.dark);
+  px.rect(36, 88, 10, 3, skin.dark);
+  px.set(20, 89, '#e8c070');
+  px.set(22, 90, '#e8c070');
+  px.set(42, 89, '#e8c070');
+  px.set(44, 90, '#e8c070');
+
+  // Round pot belly (swarm silhouette)
+  px.sphere(32, 66, 18, skin);
+  px.grit(16, 52, 32, 30, skin.dark, 0.16);
+  // Rope + hide loincloth
+  px.rect(18, 70, 28, 6, RAMPS.wood.mid);
+  px.rect(18, 71, 28, 1, RAMPS.wood.light);
+  px.rect(26, 70, 12, 10, RAMPS.wood.dark);
+  px.set(28, 72, RAMPS.wood.hilite);
+  px.set(34, 74, RAMPS.wood.mid);
+
+  // Left scrap shield (BOTW wooden)
+  px.ellipseFill(10, 58, 8, 10, RAMPS.wood.mid);
+  px.ellipseFill(10, 58, 6, 8, RAMPS.wood.light);
+  px.circleOutline(10, 58, 7, RAMPS.wood.outline);
+  px.set(10, 56, RAMPS.wood.hilite);
+  px.rect(8, 62, 4, 2, RAMPS.silver.dark);
+
+  // Right arm + claws
+  px.sphere(52, 60, 8, skin);
+  px.set(54, 62, '#e8c070');
+  px.set(56, 64, '#e8c070');
+  px.set(58, 62, '#e8c070');
+
+  // Spiked Boko bone club
+  px.rect(48, 30, 8, 36, RAMPS.paper.mid);
+  px.rect(49, 30, 4, 36, RAMPS.paper.light);
+  px.rectOutline(48, 30, 8, 36, RAMPS.paper.outline);
+  px.circle(52, 28, 7, RAMPS.paper.hilite);
+  for (const [x, y] of [[48, 24], [56, 26], [50, 22], [54, 30], [49, 34]] as const) {
+    px.set(x, y, '#e8d8b0');
+  }
+  px.set(52, 26, RAMPS.paper.dark);
+
+  // Head — pig snout first (readable tell)
+  px.sphere(32, 40, 14, skin);
+  px.ellipseFill(32, 48, 11, 7, snout.mid);
+  px.ellipseFill(32, 48, 8, 5, snout.light);
+  px.set(26, 48, skin.outline);
+  px.set(38, 48, skin.outline);
+  px.set(26, 47, snout.dark);
+  px.set(38, 47, snout.dark);
+  // Nostril slits
+  px.set(28, 49, '#2a1008');
+  px.set(36, 49, '#2a1008');
+
+  // Big bat ears (orange-pink inner)
+  for (let i = 0; i < 11; i++) {
+    px.set(14 - i, 32 - Math.floor(i * 0.5), skin.mid);
+    px.set(15 - i, 32 - Math.floor(i * 0.5), skin.light);
+    px.set(50 + i, 32 - Math.floor(i * 0.5), skin.mid);
+    px.set(49 + i, 32 - Math.floor(i * 0.5), skin.light);
+    px.set(14 - i, 31 - Math.floor(i * 0.5), RAMPS.orange.light);
+    px.set(50 + i, 31 - Math.floor(i * 0.5), RAMPS.orange.light);
+  }
+  // Horn stubs
+  px.rect(22, 24, 4, 6, RAMPS.orange.mid);
+  px.rect(38, 24, 4, 6, RAMPS.orange.mid);
+  px.set(23, 23, RAMPS.orange.hilite);
+  px.set(40, 23, RAMPS.orange.hilite);
+
+  paintEyes(px, 24, 36, 40, 36);
+  // Beady pupil glints
+  px.set(25, 35, '#ffffff');
+  px.set(41, 35, '#ffffff');
+  // Cheek pouches + toothy grin
+  px.circle(20, 44, 3, '#e07058');
+  px.circle(44, 44, 3, '#e07058');
+  px.rect(24, 54, 16, 3, skin.outline);
+  for (const x of [25, 28, 31, 34, 37]) px.set(x, 54, '#fff8f0');
+}
+
+/**
+ * Moblin — classic LoZ/ALTTP pig brute + BOTW spear-lord:
+ * towering olive frame, huge forward snout, curved horns, scrap plate, pike.
+ */
+function paintMoblin(px: PixelCanvas) {
+  const skin: ShadeRamp = { outline: '#1c2410', dark: '#486030', mid: '#688048', light: '#90a860', hilite: '#b0c880' };
+  const armor = RAMPS.darkArmor;
+
+  // Thick columnar legs
+  px.limb(24, 90, 20, 62, 5, skin);
+  px.limb(40, 90, 44, 62, 5, skin);
+  px.bodyBox(16, 82, 12, 9, armor, 1);
+  px.bodyBox(36, 82, 12, 9, armor, 1);
+  px.set(18, 84, RAMPS.silver.dark);
+  px.set(44, 84, RAMPS.silver.dark);
+
+  // Barrel torso + bolted scrap armor
+  px.bodyBox(12, 36, 40, 36, skin, 3);
+  px.bandShade(14, 38, 36, 30, skin);
+  px.grit(14, 40, 36, 30, skin.dark, 0.12);
+  // Leather harness
+  px.rect(16, 48, 32, 12, RAMPS.wood.dark);
+  px.rect(16, 49, 32, 2, RAMPS.wood.mid);
+  px.rect(16, 56, 32, 2, RAMPS.silver.dark);
+  for (const x of [18, 28, 38]) px.set(x, 52, RAMPS.silver.mid);
+  // Skull belt buckle (classic Moblin camp DNA)
+  px.circle(32, 54, 4, RAMPS.paper.mid);
+  px.set(30, 53, '#101018');
+  px.set(34, 53, '#101018');
+  px.rect(30, 56, 4, 1, '#101018');
+
+  // Left tower shield (ALTTP Moblin)
+  px.bodyBox(2, 42, 12, 28, armor, 1);
+  px.rect(4, 46, 8, 18, armor.light);
+  px.circle(8, 56, 3, RAMPS.redMalice.mid);
+  px.set(8, 55, RAMPS.redMalice.hilite);
+
+  // Right spear arm
+  px.sphere(56, 46, 9, skin);
+  px.sphere(8, 70, 5, skin); // shield grip hint
+
+  // Classic Moblin pike (long silhouette)
+  px.rect(56, 6, 4, 62, RAMPS.wood.mid);
+  px.rect(57, 6, 2, 62, RAMPS.wood.light);
+  px.rect(54, 4, 8, 10, RAMPS.silver.light);
+  px.set(58, 2, RAMPS.silver.hilite);
+  px.rect(55, 12, 6, 2, RAMPS.silver.mid);
+  px.set(58, 8, '#ffffff');
+
+  // Head — oversized forward pig snout (NES tell)
+  px.sphere(32, 26, 13, skin);
+  px.ellipseFill(32, 34, 12, 8, '#607840');
+  px.ellipseFill(32, 34, 9, 6, '#789858');
+  px.ellipseFill(32, 35, 6, 3, '#90a870');
+  px.set(25, 34, skin.outline);
+  px.set(39, 34, skin.outline);
+  px.set(26, 36, '#2a3018');
+  px.set(38, 36, '#2a3018');
+
+  // Curved bone horns (sweeping out)
+  for (let i = 0; i < 13; i++) {
+    const y = 20 - Math.floor(i * 0.9);
+    px.set(16 - i, y, RAMPS.paper.mid);
+    px.set(17 - i, y, RAMPS.paper.light);
+    px.set(18 - i, y + 1, RAMPS.paper.dark);
+    px.set(48 + i, y, RAMPS.paper.mid);
+    px.set(47 + i, y, RAMPS.paper.light);
+    px.set(46 + i, y + 1, RAMPS.paper.dark);
+  }
+  px.set(6, 10, RAMPS.paper.hilite);
+  px.set(58, 10, RAMPS.paper.hilite);
+
+  paintGlowEyes(px, 24, 24, 38, 24, '#ffe080');
+  // Tusks + snarl
+  px.rect(22, 38, 4, 7, '#fff8f0');
+  px.rect(38, 38, 4, 7, '#fff8f0');
+  px.set(23, 38, '#ffffff');
+  px.set(40, 38, '#ffffff');
+  px.rect(26, 40, 12, 2, skin.outline);
+}
+
+/**
+ * Lizalfos — OoT chameleon + BOTW amphibious skirmisher:
+ * digitigrade reverse joints, gold crest, curling tail, Lizal boomerang, tongue.
+ */
+function paintLizalfos(px: PixelCanvas) {
+  const skin: ShadeRamp = { outline: '#062418', dark: '#187848', mid: '#30a868', light: '#50c888', hilite: '#80e8b0' };
+  const belly: ShadeRamp = { outline: '#204028', dark: '#88a060', mid: '#b0c880', light: '#d0e0a0', hilite: '#f0f8c8' };
+  const crest = RAMPS.gold;
+
+  // Digitigrade reverse-joint legs (skirmisher stance)
+  px.limb(28, 90, 16, 74, 2, skin);
+  px.limb(36, 90, 48, 74, 2, skin);
+  px.limb(16, 74, 24, 56, 2, skin);
+  px.limb(48, 74, 40, 56, 2, skin);
+  px.rect(12, 88, 8, 3, skin.dark);
+  px.rect(44, 88, 8, 3, skin.dark);
+  px.set(12, 89, skin.hilite);
+  px.set(50, 89, skin.hilite);
+
+  // Lean torso + scale dither + pale belly
+  px.bodyBox(22, 42, 20, 30, skin, 4);
+  px.dither(24, 46, 16, 22, skin.mid, skin.light);
+  // Camouflage blotches (OoT chameleon DNA)
+  px.circle(26, 52, 3, skin.dark);
+  px.circle(38, 58, 2, skin.dark);
+  px.circle(30, 64, 2, '#208858');
+  px.ellipseFill(32, 58, 9, 12, belly.mid);
+  px.ellipseFill(32, 56, 6, 8, belly.light);
+
+  // Long curling tail (counterbalance silhouette)
+  for (let i = 0; i < 24; i++) {
+    const r = Math.max(1, 6 - Math.floor(i / 4));
+    const x = 46 + i;
+    const y = 68 - Math.floor(i * 0.45) + (i > 14 ? Math.floor((i - 14) * 0.6) : 0);
+    px.circle(x, y, r, i % 2 ? skin.mid : skin.light);
+    if (i % 3 === 0) px.set(x, y - r, crest.mid);
+  }
+
+  // Arms
+  px.limb(22, 48, 8, 64, 2, skin);
+  px.limb(42, 48, 54, 56, 2, skin);
+  px.sphere(6, 66, 4, skin);
+  px.sphere(56, 56, 4, skin);
+
+  // Crested chameleon head
+  px.sphere(32, 34, 10, skin);
+  // Tall gold crest plume
+  for (let i = 0; i < 14; i++) {
+    px.set(32, 26 - i, crest.mid);
+    px.set(31, 26 - i, crest.dark);
+    px.set(33, 26 - i, crest.light);
+    if (i % 2 === 0) {
+      px.set(30, 26 - i, crest.dark);
+      px.set(34, 26 - i, crest.hilite);
+    }
+  }
+  // Side frills / dewlap
+  px.circle(18, 36, 6, skin.light);
+  px.circle(46, 36, 6, skin.light);
+  px.circle(18, 36, 3, skin.hilite);
+  px.circle(46, 36, 3, skin.hilite);
+  // Jaw
+  px.ellipseFill(32, 42, 7, 4, belly.mid);
+
+  paintEyes(px, 26, 34, 38, 34);
+  px.set(27, 33, '#ffffff');
+  px.set(39, 33, '#ffffff');
+  // Forked tongue flick
+  for (let i = 0; i < 8; i++) px.set(32 + i, 44, RAMPS.pink.mid);
+  px.set(40, 43, RAMPS.pink.light);
+  px.set(40, 45, RAMPS.pink.light);
+
+  // Lizal boomerang (forked metal)
+  px.rect(4, 48, 16, 3, RAMPS.silver.mid);
+  px.rect(4, 47, 5, 5, RAMPS.silver.light);
+  px.rect(15, 47, 5, 5, RAMPS.silver.light);
+  px.set(6, 46, RAMPS.silver.hilite);
+  px.set(18, 46, RAMPS.silver.hilite);
+  px.rect(10, 49, 4, 2, RAMPS.silver.dark);
+}
+
+/**
+ * Guardian Stalker — BOTW Sheikah ancient weapon, malice-corrupted:
+ * hex dish chassis, six jointed legs, laser eye stalk, Sheikah glyph + Calamity cracks.
+ */
+function paintGuardian(px: PixelCanvas) {
+  const shell: ShadeRamp = { outline: '#1a2820', dark: '#3a5850', mid: '#588078', light: '#80a8a0', hilite: '#b0d0c8' };
+  const ancient = '#48e0b0';
   const malice = RAMPS.redMalice;
 
-  px.limb(25, 88, 23, 66, 3, armor);
-  px.limb(39, 88, 41, 66, 3, armor);
-  px.bodyBox(18, 42, 28, 30, armor, 2);
-  px.bandShade(20, 44, 24, 24, armor);
-  // Malice veins
-  for (const [x, y] of [[26, 48], [27, 50], [28, 53], [29, 56], [38, 46], [39, 49], [40, 52]] as const) {
+  // Hexagonal dish body (Sheikah tech silhouette)
+  for (let j = -18; j <= 16; j++) {
+    const half = 20 - Math.floor(Math.abs(j) * 0.55);
+    for (let i = -half; i <= half; i++) {
+      const edge = Math.abs(i) === half || Math.abs(j) === 18 || j === 16;
+      const ring = Math.hypot(i, j);
+      let hex: Hex = shell.mid;
+      if (edge) hex = shell.outline;
+      else if (ring < 5) hex = shell.hilite;
+      else if (ring < 9) hex = shell.light;
+      else if (i < -4) hex = shell.dark;
+      else if ((i + j * 2) % 5 === 0) hex = '#406860';
+      px.set(32 + i, 58 + j, hex);
+    }
+  }
+  px.grit(14, 42, 36, 34, shell.dark, 0.18);
+  // Concentric Sheikah rings
+  px.circleOutline(32, 56, 14, ancient);
+  px.circleOutline(32, 56, 10, '#28a080');
+  px.circleOutline(32, 56, 6, ancient);
+  // Eye of Truth-ish glyph dots
+  for (const a of [0, 1, 2, 3, 4, 5] as const) {
+    const ang = (a / 6) * Math.PI * 2;
+    px.set(32 + Math.round(Math.cos(ang) * 10), 56 + Math.round(Math.sin(ang) * 8), ancient);
+  }
+  // Calamity malice cracks through plating
+  for (const [x, y] of [[24, 48], [25, 52], [26, 56], [40, 50], [41, 54], [42, 58], [34, 62]] as const) {
     px.set(x, y, malice.light);
     px.set(x + 1, y + 1, malice.mid);
   }
-  // Cape layers
-  for (let j = 0; j < 34; j++) {
-    for (let i = -18; i <= 18; i++) {
-      if (Math.abs(i) > 11 + j / 2.8) continue;
-      const edge = Math.abs(i) > 9 + j / 3;
-      px.set(32 + i, 46 + j, edge ? malice.outline : (i < -5 ? '#2a0810' : '#4a1020'));
-    }
-  }
-  px.grit(16, 48, 32, 28, malice.dark, 0.1);
 
-  // Greatsword
-  px.rect(52, 18, 3, 52, RAMPS.silver.dark);
-  px.rect(53, 18, 1, 52, RAMPS.silver.mid);
-  px.rect(50, 66, 8, 4, malice.mid);
-  px.rect(51, 65, 6, 1, malice.hilite);
-
-  px.sphere(32, 32, 10, skin);
-  // Wild red mane
-  px.hairCap(32, 28, 12, 16, malice, true);
-  for (let i = -12; i <= 12; i++) {
-    if (Math.abs(i) % 4 === 0) {
-      for (let j = 0; j < 6; j++) px.set(32 + i + (j % 2), 12 + j, malice.light);
-    }
+  // Six articulated stalker legs
+  for (const [x, y] of [[6, 72], [14, 84], [50, 84], [58, 72], [8, 44], [56, 44]] as const) {
+    px.limb(32, 56, x, y, 2, shell);
+    // Mid joint
+    px.circle(Math.round((32 + x) / 2), Math.round((56 + y) / 2), 3, shell.dark);
+    px.circle(x, y, 4, shell.dark);
+    px.circle(x, y - 1, 2, ancient);
+    px.set(x, y - 2, '#ffffff');
   }
-  paintGlowEyes(px, 27, 31, 36, 31, malice.hilite);
-  // Snarl
-  px.rect(28, 38, 8, 2, skin.dark);
-  px.set(29, 39, '#fff0e0');
-  px.set(33, 39, '#fff0e0');
+
+  // Eye stalk + charging malice laser
+  px.rect(29, 18, 6, 28, shell.mid);
+  px.rect(30, 18, 4, 28, shell.light);
+  px.rectOutline(29, 18, 6, 28, shell.outline);
+  // Segment rings on stalk
+  px.rect(29, 28, 6, 1, ancient);
+  px.rect(29, 36, 6, 1, ancient);
+  px.sphere(32, 16, 11, shell);
+  px.circle(32, 16, 8, malice.dark);
+  px.circle(32, 16, 6, malice.mid);
+  px.circle(32, 16, 3, malice.hilite);
+  px.circle(32, 16, 1, '#ffffff');
+  // Laser charge beam hint
+  px.rect(31, 4, 2, 6, '#ff4060');
+  px.set(31, 2, '#ffffff');
+  px.set(24, 10, ancient);
+  px.set(40, 12, malice.hilite);
+  px.set(28, 8, '#ff2040');
 }
 
-function paintBokoblin(px: PixelCanvas) {
-  // Classic BOTW pig-snout Bokoblin — round belly, bat ears, bone club
-  const skin: ShadeRamp = { outline: '#183018', dark: '#3a7840', mid: '#58a060', light: '#78c078', hilite: '#a0e0a0' };
+/**
+ * Gloom Spawn — TotK Gloom Hands / phantom residue:
+ * five-finger shadow claw, floating malice eyes, dripping gloom puddle.
+ */
+function paintGloomSpawn(px: PixelCanvas) {
+  const gloom: ShadeRamp = { outline: '#100018', dark: '#280820', mid: '#501030', light: '#882040', hilite: '#c04058' };
+  const malice = RAMPS.redMalice;
 
-  px.limb(26, 88, 25, 72, 2, skin);
-  px.limb(38, 88, 39, 72, 2, skin);
-  px.sphere(32, 64, 16, skin);
-  px.grit(18, 50, 28, 28, skin.dark, 0.12);
-  px.rect(22, 68, 20, 5, RAMPS.wood.mid);
-  px.rect(22, 69, 20, 1, RAMPS.wood.light);
-  px.sphere(14, 62, 6, skin);
-  px.sphere(50, 62, 6, skin);
-
-  // Bone club
-  px.rect(48, 36, 6, 30, RAMPS.paper.mid);
-  px.rect(49, 36, 2, 30, RAMPS.paper.light);
-  px.circle(51, 34, 5, RAMPS.paper.hilite);
-  px.set(49, 32, RAMPS.paper.dark);
-  px.set(53, 32, RAMPS.paper.dark);
-
-  px.sphere(32, 40, 13, skin);
-  // Big pig snout
-  px.ellipseFill(32, 46, 8, 5, '#489050');
-  px.set(29, 46, skin.outline);
-  px.set(35, 46, skin.outline);
-  // Bat ears
+  // Gloom puddle base
+  px.ellipseFill(32, 86, 20, 6, '#080010');
+  px.ellipseFill(32, 84, 14, 4, gloom.dark);
   for (let i = 0; i < 8; i++) {
-    px.set(18 - i, 34 - Math.floor(i * 0.5), skin.mid);
-    px.set(46 + i, 34 - Math.floor(i * 0.5), skin.mid);
-    px.set(18 - i, 33 - Math.floor(i * 0.5), skin.light);
+    px.set(20 + i * 3, 88 + (i % 3), gloom.light);
   }
-  px.set(24, 26, RAMPS.orange.mid);
-  px.set(40, 26, RAMPS.orange.mid);
-  paintEyes(px, 25, 36, 39, 36);
-  // Toothy grin
-  px.rect(27, 52, 10, 2, skin.outline);
-  px.set(28, 52, '#fff8f0');
-  px.set(32, 52, '#fff8f0');
-  px.set(36, 52, '#fff8f0');
-}
 
-function paintMoblin(px: PixelCanvas) {
-  const skin: ShadeRamp = { outline: '#202818', dark: '#506038', mid: '#708050', light: '#90a068', hilite: '#b0c088' };
+  // Palm mass
+  px.sphere(32, 60, 16, gloom);
+  px.grit(16, 46, 32, 30, '#080010', 0.22);
+  px.ellipseFill(32, 64, 12, 8, gloom.dark);
 
-  px.limb(25, 88, 23, 64, 3, skin);
-  px.limb(39, 88, 41, 64, 3, skin);
-  px.bodyBox(16, 40, 32, 30, skin, 3);
-  px.bandShade(18, 42, 28, 24, skin);
-  px.rect(20, 54, 24, 8, RAMPS.wood.dark);
-  px.rect(20, 55, 24, 2, RAMPS.wood.mid);
-  px.sphere(10, 50, 7, skin);
-  px.sphere(54, 50, 7, skin);
-
-  // Pike
-  px.rect(55, 14, 3, 52, RAMPS.wood.mid);
-  px.rect(54, 12, 5, 6, RAMPS.silver.light);
-  px.set(57, 10, RAMPS.silver.hilite);
-
-  px.sphere(32, 30, 11, skin);
-  // Curved horns
-  for (let i = 0; i < 10; i++) {
-    px.set(20 - i, 24 - Math.floor(i * 0.9), RAMPS.orange.mid);
-    px.set(21 - i, 24 - Math.floor(i * 0.9), RAMPS.orange.light);
-    px.set(44 + i, 24 - Math.floor(i * 0.9), RAMPS.orange.mid);
-    px.set(43 + i, 24 - Math.floor(i * 0.9), RAMPS.orange.dark);
+  // Five Gloom Hand fingers reaching upward (TotK tell)
+  const fingers: Array<[number, number, number, number]> = [
+    [-16, 56, 18, -0.7],
+    [-8, 44, 22, -0.35],
+    [0, 38, 26, 0.0],
+    [8, 42, 22, 0.35],
+    [16, 54, 18, 0.7],
+  ];
+  for (const [ox, oy, len, curve] of fingers) {
+    for (let i = 0; i < len; i++) {
+      const x = 32 + ox + Math.round(i * curve);
+      const y = oy - Math.floor(i * 0.9);
+      const r = Math.max(1, 5 - Math.floor(i / 5));
+      px.circle(x, y, r, i % 2 ? gloom.mid : gloom.light);
+      if (i > len - 4) px.set(x, y, malice.light);
+      if (i === len - 1) {
+        px.set(x, y - 1, malice.hilite);
+        px.set(x - 1, y, gloom.outline); // claw tip
+      }
+    }
   }
-  px.bodyBox(25, 32, 14, 7, { ...skin, mid: '#607040' }, 2);
-  paintEyes(px, 26, 28, 38, 28);
-}
 
-function paintLizalfos(px: PixelCanvas) {
-  const skin: ShadeRamp = { outline: '#082818', dark: '#208050', mid: '#38a868', light: '#58c888', hilite: '#88e8b0' };
-
-  px.limb(27, 88, 20, 68, 2, skin);
-  px.limb(37, 88, 44, 68, 2, skin);
-  px.bodyBox(23, 46, 18, 26, skin, 3);
-  px.dither(25, 48, 14, 20, skin.mid, skin.light);
-  // Tail
-  for (let i = 0; i < 18; i++) {
-    px.circle(42 + i, 72 - Math.floor(i * 0.35), 4 - Math.floor(i / 6), i % 2 ? skin.mid : skin.light);
+  // Cluster of floating malice eyes in the palm
+  for (const [x, y, s] of [[26, 56, 4], [36, 54, 5], [32, 64, 4], [22, 62, 3], [42, 62, 3], [30, 50, 2]] as const) {
+    px.circle(x, y, s, malice.mid);
+    px.circle(x, y, Math.max(1, s - 2), malice.hilite);
+    px.set(x, y - 1, '#ffffff');
   }
-  px.sphere(32, 38, 8, skin);
-  for (let i = 0; i < 10; i++) {
-    px.set(32, 30 - i, RAMPS.gold.mid);
-    px.set(31, 30 - i, RAMPS.gold.dark);
+  // Extra tendril drip from wrist
+  for (let i = 0; i < 12; i++) {
+    px.circle(32 + (i % 3) - 1, 74 + i, Math.max(1, 3 - Math.floor(i / 4)), i < 4 ? gloom.mid : gloom.light);
   }
-  paintEyes(px, 28, 38, 36, 38);
-  // Boomerang
-  px.rect(10, 48, 12, 3, RAMPS.silver.mid);
-  px.rect(10, 47, 3, 5, RAMPS.silver.light);
-  px.rect(19, 47, 3, 5, RAMPS.silver.light);
-}
-
-function paintGuardian(px: PixelCanvas) {
-  const shell = RAMPS.stone;
-  px.sphere(32, 56, 17, shell);
-  px.grit(18, 42, 28, 28, shell.dark, 0.18);
-  // Ancient markings
-  px.circleOutline(32, 56, 10, '#48c8a0');
-  px.circleOutline(32, 56, 6, '#28a080');
-  for (const [x, y] of [[12, 72], [20, 80], [44, 80], [52, 72], [14, 48], [50, 48]] as const) {
-    px.limb(32, 56, x, y, 1, shell);
-    px.circle(x, y, 3, shell.dark);
-    px.set(x, y - 1, '#48c8a0');
-  }
-  // Eye stalk
-  px.rect(30, 26, 4, 20, shell.mid);
-  px.rect(31, 26, 2, 20, shell.light);
-  px.sphere(32, 24, 9, shell);
-  px.circle(32, 24, 6, RAMPS.redMalice.mid);
-  px.circle(32, 24, 3, RAMPS.redMalice.hilite);
-  px.set(32, 23, '#ffffff');
-  px.set(31, 24, '#ff2040');
 }
 
 function paintKirby(px: PixelCanvas) {

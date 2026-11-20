@@ -19,12 +19,12 @@ export interface PostProcessConfig {
 }
 
 export const DEFAULT_POST_CONFIG: PostProcessConfig = {
-  bloomStrength: 0.22,
-  bloomThreshold: 0.82,
-  vignetteIntensity: 0.28,
-  toneMappingExposure: 1.05,
-  bokehScale: 2.4,
-  focusRange: 18,
+  bloomStrength: 0.04,
+  bloomThreshold: 0.92,
+  vignetteIntensity: 0.14,
+  toneMappingExposure: 1,
+  bokehScale: 0.15,
+  focusRange: 80,
 };
 
 export function applyPostProcessConfig(
@@ -32,7 +32,7 @@ export function applyPostProcessConfig(
   config: Partial<PostProcessConfig> = {},
 ): PostProcessConfig {
   const cfg = { ...DEFAULT_POST_CONFIG, ...config };
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.toneMappingExposure = cfg.toneMappingExposure;
   return cfg;
 }

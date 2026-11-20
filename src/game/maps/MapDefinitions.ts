@@ -80,10 +80,10 @@ export const MAP_DB: Record<string, MapDef> = {
   'triforce-clash': {
     id: 'triforce-clash',
     name: 'Triforce Clash',
-    blurb: '3-faction mid-game diorama — Hyrule SW, Dream Land NW, Malice NE.',
+    blurb: 'Hyrule Island. The keep holds the southwest shore. Malice and Dream Land have landed. Their homes are the islets out at sea.',
     realm: 'Neutral',
     biome: 'hyrule-field',
-    chunkRadius: 3,
+    chunkRadius: 4,
     heightChunks: 1,
     players: 3,
     surfaceVoxel: VoxelType.Grass,

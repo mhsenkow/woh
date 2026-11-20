@@ -8,12 +8,17 @@ import {
   Pathfinding,
   Target,
   UnitType,
+  Building,
+  Hero,
 } from '../sim/ecs/components';
 import { getUnit } from '../game/units/UnitDefinitions';
+import { queueAbility } from '../sim/ecs/systems/AbilitySystem';
+import { setAttackMove, clearAttackMove } from '../sim/combat/CombatEffects';
 import type { StandeeRenderer } from '../engine/standee/StandeeRenderer';
 import type { SelectionBox } from './SelectionBox';
 
 const selectableQuery = defineQuery([Position, Health, Faction, Standee, Pathfinding]);
+const buildingTargetQuery = defineQuery([Position, Health, Faction, Building]);
 
 export type OrderMode = 'default' | 'attack' | 'move' | 'stop' | 'hold';
 
@@ -121,8 +126,16 @@ export class SelectionController {
         this.orderMode = this.orderMode === 'move' ? 'default' : 'move';
         break;
       case 'patrol':
-        // Soft patrol: move a short offset from current centroid then return later
         this.patrolSelected();
+        break;
+      case 'ability1':
+        this.castHeroAbility(0);
+        break;
+      case 'ability2':
+        this.castHeroAbility(1);
+        break;
+      case 'ability3':
+        this.castHeroAbility(2);
         break;
       default:
         break;
@@ -259,6 +272,21 @@ export class SelectionController {
         best = eid;
       }
     }
+
+    // Also allow targeting enemy buildings (attack orders only)
+    if (!playerOnly) {
+      for (const eid of buildingTargetQuery(this.world)) {
+        if ((Health.current[eid] ?? 0) <= 0) continue;
+        if (Faction.id[eid] === this.playerFaction) continue;
+        const sp = this.worldToScreen(Position.x[eid], Position.y[eid], Position.z[eid]);
+        if (!sp) continue;
+        const d = Math.hypot(sp.x - clientX, sp.y - clientY);
+        if (d < bestDist + 12) {
+          bestDist = d;
+          best = eid;
+        }
+      }
+    }
     return best;
   }
 
@@ -340,6 +368,7 @@ export class SelectionController {
     const formation = this.formationOffsets(ids.length);
     ids.forEach((eid, i) => {
       const off = formation[i];
+      clearAttackMove(eid);
       Target.hasTarget[eid] = 0;
       Target.entity[eid] = 0;
       Pathfinding.goalX[eid] = x + off.x;
@@ -351,14 +380,24 @@ export class SelectionController {
   }
 
   private attackMove(x: number, z: number): void {
-    // Move toward point; CombatSystem / next AI tick for enemies still applies
-    // for non-player. For player, set path and clear explicit target — units
-    // will engage via a light local seek below when idle near enemies.
-    this.moveTo(x, z);
+    const ids = this.getSelectedIds();
+    const formation = this.formationOffsets(ids.length);
+    ids.forEach((eid, i) => {
+      const off = formation[i];
+      Target.hasTarget[eid] = 0;
+      Target.entity[eid] = 0;
+      setAttackMove(eid, true);
+      Pathfinding.goalX[eid] = x + off.x;
+      Pathfinding.goalZ[eid] = z + off.z;
+      Pathfinding.hasPath[eid] = 1;
+      Pathfinding.pathIndex[eid] = 0;
+      Standee.animState[eid] = 1;
+    });
   }
 
   private attackTarget(enemyEid: number): void {
     for (const eid of this.getSelectedIds()) {
+      clearAttackMove(eid);
       Target.hasTarget[eid] = 1;
       Target.entity[eid] = enemyEid;
       Target.x[eid] = Position.x[enemyEid];
@@ -371,8 +410,23 @@ export class SelectionController {
     }
   }
 
+  private castHeroAbility(slot: 0 | 1 | 2): void {
+    const hero = this.getSelectedIds().find((eid) => Standee.isElite[eid] === 1);
+    if (hero === undefined) return;
+    const ground = this.getSelectionCentroid();
+    queueAbility({
+      heroEid: hero,
+      abilitySlot: slot,
+      targetX: ground?.x ?? Position.x[hero],
+      targetZ: ground?.z ?? Position.z[hero],
+      targetEid: Target.hasTarget[hero] ? Target.entity[hero] : undefined,
+    });
+    void Hero;
+  }
+
   private stopSelected(): void {
     for (const eid of this.getSelectedIds()) {
+      clearAttackMove(eid);
       Target.hasTarget[eid] = 0;
       Pathfinding.hasPath[eid] = 0;
       Standee.animState[eid] = 0;
@@ -381,6 +435,7 @@ export class SelectionController {
 
   private holdSelected(): void {
     for (const eid of this.getSelectedIds()) {
+      clearAttackMove(eid);
       Target.hasTarget[eid] = 0;
       Pathfinding.hasPath[eid] = 0;
       Pathfinding.goalX[eid] = Position.x[eid];

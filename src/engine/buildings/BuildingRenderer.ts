@@ -41,6 +41,7 @@ export class BuildingRenderer {
         factionId,
         def?.name ?? 'Structure',
         768,
+        buildingTypeId,
       );
       this.artCache.set(cacheKey, map);
     }
@@ -54,16 +55,12 @@ export class BuildingRenderer {
     map.minFilter = THREE.NearestFilter;
     map.generateMipmaps = false;
 
-    const mat = new THREE.MeshPhysicalMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       map,
       color: 0xffffff,
       transparent: true,
-      alphaTest: 0.15,
+      alphaTest: 0.5,
       side: THREE.DoubleSide,
-      roughness: 0.55,
-      metalness: 0.05,
-      clearcoat: 0.2,
-      clearcoatRoughness: 0.4,
     });
 
     const front = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
@@ -72,13 +69,12 @@ export class BuildingRenderer {
     facePivot.add(front);
 
     // Cardboard back
-    const backMat = new THREE.MeshStandardMaterial({
+    const backMat = new THREE.MeshBasicMaterial({
       map,
-      color: 0xe8dcc8,
+      color: 0xf3e6cf,
       transparent: true,
-      alphaTest: 0.15,
+      alphaTest: 0.5,
       side: THREE.BackSide,
-      roughness: 0.9,
     });
     const back = new THREE.Mesh(new THREE.PlaneGeometry(width, height), backMat);
     back.position.set(0, height / 2 + 0.06, -0.05);
@@ -87,7 +83,7 @@ export class BuildingRenderer {
     // Plinth
     const base = new THREE.Mesh(
       new THREE.CylinderGeometry(size * 0.45, size * 0.52, 0.1, 20),
-      new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5, metalness: 0.3 }),
+      new THREE.MeshLambertMaterial({ color: 0xc49a62 }),
     );
     base.position.y = 0.05;
     base.castShadow = true;

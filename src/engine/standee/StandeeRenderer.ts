@@ -62,9 +62,10 @@ export class StandeeRenderer {
       });
 
     const hasArtMap =
+      frontMat instanceof THREE.MeshBasicMaterial ||
       frontMat instanceof THREE.MeshPhysicalMaterial ||
       frontMat instanceof THREE.MeshStandardMaterial
-        ? Boolean((frontMat as THREE.MeshStandardMaterial).map)
+        ? Boolean((frontMat as THREE.MeshBasicMaterial).map)
         : false;
 
     // Front cutout plane (painted art / AI sprite)
@@ -77,14 +78,12 @@ export class StandeeRenderer {
     if (hasArtMap) {
       // Cardboard back face — same alpha cutout, warm paper color for thickness
       const srcMap = (frontMat as THREE.MeshStandardMaterial).map;
-      const backMat = new THREE.MeshStandardMaterial({
-        color: 0xe8dcc8,
+      const backMat = new THREE.MeshBasicMaterial({
+        color: 0xf3e6cf,
         map: srcMap,
-        alphaTest: 0.15,
+        alphaTest: 0.5,
         transparent: true,
         side: THREE.BackSide,
-        roughness: 0.85,
-        metalness: 0.0,
       });
       const backMesh = new THREE.Mesh(frontGeo.clone(), backMat);
       backMesh.position.set(0, cfg.height / 2 + cfg.baseHeight, -cfg.rimDepth * 0.5);
@@ -125,10 +124,8 @@ export class StandeeRenderer {
       cfg.baseHeight,
       24,
     );
-    const baseMat = new THREE.MeshStandardMaterial({
-      color: 0x333333,
-      roughness: 0.45,
-      metalness: 0.35,
+    const baseMat = new THREE.MeshLambertMaterial({
+      color: 0xc49a62,
     });
     const baseMesh = new THREE.Mesh(baseGeo, baseMat);
     baseMesh.position.y = cfg.baseHeight / 2;

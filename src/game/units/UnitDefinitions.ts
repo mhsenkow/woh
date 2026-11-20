@@ -26,7 +26,7 @@ export const UNIT_DB: Record<number, UnitDef> = {
   101: { id: 101, name: 'Goron Siege', faction: FactionId.HyruleRoyalGuard, hp: 200, damage: 30, range: 4.0, speed: 1.2, attackSpeed: 0.5, isRanged: true, buildTime: 12, cost: { primary: 150 }, tier: 2, requiresTech: true, role: 'siege', tags: ['artillery', 'buildingDamage'] },
   102: { id: 102, name: 'Zora Swimmer', faction: FactionId.HyruleRoyalGuard, hp: 60, damage: 12, range: 1.0, speed: 3.5, attackSpeed: 1.2, buildTime: 6, cost: { primary: 60 }, tier: 1, requiresTech: true, role: 'melee', tags: ['aquatic'] },
   103: { id: 103, name: 'Sheikah Turret', faction: FactionId.HyruleRoyalGuard, hp: 150, damage: 18, range: 6.0, speed: 0, attackSpeed: 0.8, isRanged: true, buildTime: 10, cost: { primary: 120 }, tier: 2, requiresTech: true, role: 'ranged', tags: ['turret', 'transform'] },
-  104: { id: 104, name: 'Fairy Healer', faction: FactionId.HyruleRoyalGuard, hp: 40, damage: 0, range: 3.0, speed: 2.8, attackSpeed: 0, buildTime: 8, cost: { primary: 80 }, tier: 1, requiresTech: true, role: 'support', tags: ['heal'] },
+  104: { id: 104, name: 'Fairy Healer', faction: FactionId.HyruleRoyalGuard, hp: 40, damage: 0, range: 3.0, speed: 2.8, attackSpeed: 0.85, buildTime: 8, cost: { primary: 80 }, tier: 1, requiresTech: true, role: 'support', tags: ['heal'] },
 
   // ——— Ganon's Malice Horde (110–119) ———
   110: { id: 110, name: 'Bokoblin', faction: FactionId.GanonMaliceHorde, hp: 50, damage: 8, range: 1.0, speed: 2.8, attackSpeed: 1.3, buildTime: 3, cost: { primary: 25 }, tier: 1, role: 'swarm', tags: ['bloodMoon'] },

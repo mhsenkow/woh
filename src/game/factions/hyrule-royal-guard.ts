@@ -6,7 +6,7 @@ export const HYRULE_UNITS = {
   goronSiege: { id: 101, name: 'Goron Siege', hp: 200, damage: 30, range: 4.0, speed: 1.2, attackSpeed: 0.5, isRanged: true },
   zoraSwimmer: { id: 102, name: 'Zora Swimmer', hp: 60, damage: 12, range: 1.0, speed: 3.5, attackSpeed: 1.2 },
   sheikahTurret: { id: 103, name: 'Sheikah Turret', hp: 150, damage: 18, range: 6.0, speed: 0, attackSpeed: 0.8, isRanged: true },
-  fairyHealer: { id: 104, name: 'Fairy Healer', hp: 40, damage: 0, range: 3.0, speed: 2.8, attackSpeed: 0 },
+  fairyHealer: { id: 104, name: 'Fairy Healer', hp: 40, damage: 0, range: 3.0, speed: 2.8, attackSpeed: 0.85 },
 };
 
 export const HYRULE_BUILDINGS = {

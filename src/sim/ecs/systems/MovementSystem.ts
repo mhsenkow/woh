@@ -1,6 +1,10 @@
-import { defineQuery } from 'bitecs/legacy';
-import { Position, Velocity, Pathfinding, Target, Standee } from '../components';
+import { defineQuery, hasComponent } from 'bitecs/legacy';
+import { Position, Velocity, Pathfinding, Target, Standee, Health, UnitType } from '../components';
 import { getMeta } from '../World';
+import { effectiveSpeed } from '../../combat/CombatEffects';
+
+const SWIMS = new Set([102]);
+const FLIES = new Set([123, 134, 143]);
 
 const movingQuery = defineQuery([Position, Velocity, Pathfinding]);
 
@@ -10,6 +14,13 @@ export function MovementSystem(world: object): void {
   const entities = movingQuery(world);
 
   for (const eid of entities) {
+    if ((Health.current[eid] ?? 0) <= 0) {
+      Velocity.x[eid] = 0;
+      Velocity.z[eid] = 0;
+      Pathfinding.hasPath[eid] = 0;
+      continue;
+    }
+
     if (!Pathfinding.hasPath[eid] && !Target.hasTarget[eid]) {
       Velocity.x[eid] = 0;
       Velocity.z[eid] = 0;
@@ -31,7 +42,11 @@ export function MovementSystem(world: object): void {
       continue;
     }
 
-    const speed = Pathfinding.speed[eid];
+    let speed = effectiveSpeed(eid, Pathfinding.speed[eid]);
+    const unitId = hasComponent(world, UnitType, eid) ? UnitType.id[eid] : 0;
+    if (meta.terrain?.isWater(Position.x[eid], Position.z[eid]) && !FLIES.has(unitId)) {
+      speed *= SWIMS.has(unitId) ? 1.2 : 0.38;
+    }
     const nx = dx / dist;
     const nz = dz / dist;
 

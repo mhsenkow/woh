@@ -1,6 +1,59 @@
 import * as THREE from 'three';
 import { VoxelChunk, CHUNK_SIZE, VOXEL_SCALE, VoxelType } from './VoxelChunk';
 import { meshChunk, meshWater } from './VoxelMesher';
+import { createInkTerrainMaterial, createInkWaterMaterial, type InkWaterUniforms } from '../art/InkTerrainMaterial';
+import { valueNoise } from '../math/valueNoise';
+
+/** Water plane height. Land below this is sea, bay, or channel. */
+export const OCEAN_Y = 1.08;
+
+function writeColumn(chunk: VoxelChunk, x: number, z: number, topCell: number, cap: VoxelType): void {
+  const top = Math.max(0, Math.min(CHUNK_SIZE - 1, topCell));
+  for (let y = 0; y < CHUNK_SIZE; y++) {
+    if (y < top) chunk.set(x, y, z, y < top - 1 ? VoxelType.Stone : VoxelType.Dirt);
+    else if (y === top) chunk.set(x, y, z, cap);
+    else chunk.set(x, y, z, VoxelType.Air);
+  }
+}
+
+function gauss(x: number, z: number, cx: number, cz: number, sigma: number): number {
+  const dx = x - cx;
+  const dz = z - cz;
+  return Math.exp(-(dx * dx + dz * dz) / (2 * sigma * sigma));
+}
+
+/**
+ * Implicit coast. Positive is land.
+ * Three gaussian lobes (the three camps sit on them) added to a round core,
+ * then domain-warped. Negative gaussians scoop a harbor to the east and
+ * coves to the south and north, so the zero contour is a rounded triangle
+ * rather than a circle. A 6m disk around each camp stays above the beach.
+ */
+function coastField(wx: number, wz: number, half: number): number {
+  const s = half >= 120 ? 1 : half / 128;
+  const freq = 0.015 / Math.max(s, 0.35);
+  const warp = 6 * s;
+  const x = wx + (valueNoise(wx * freq, wz * freq) - 0.5) * 2 * warp;
+  const z = wz + (valueNoise(wx * freq + 19.2, wz * freq + 7.7) - 0.5) * 2 * warp;
+  const span = 78 * s;
+  const core = 1 - (x * x + z * z) / (span * span);
+  let field = core * 0.42;
+  field += gauss(x, z, -86 * s, -76 * s, 36 * s) * 0.85;
+  field += gauss(x, z, 82 * s, 72 * s, 36 * s) * 0.85;
+  field += gauss(x, z, -82 * s, 78 * s, 36 * s) * 0.85;
+  field -= gauss(wx, wz, 108 * s, -4 * s, 22 * s) * 0.7;
+  field -= gauss(wx, wz, 16 * s, -108 * s, 20 * s) * 0.42;
+  field -= gauss(wx, wz, 28 * s, 112 * s, 18 * s) * 0.28;
+  return field;
+}
+
+/** Two low terraces inland. The lobes stay meadows; the middle rises a little. */
+function domeTop(field: number, wx: number, wz: number): number {
+  const t = Math.min(1, Math.max(0, (field - 0.45) / 0.4));
+  const smooth = t * t * (3 - 2 * t);
+  const roll = 0.65 + 0.35 * valueNoise(wx * 0.01 + 2, wz * 0.01);
+  return 6 + Math.round(smooth * roll * 2);
+}
 
 export class VoxelWorld {
   readonly group = new THREE.Group();
@@ -11,28 +64,8 @@ export class VoxelWorld {
   private waterMaterial: THREE.Material;
 
   constructor() {
-    this.terrainMaterial = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.86,
-      metalness: 0.02,
-      flatShading: true,
-      envMapIntensity: 0.45,
-      side: THREE.FrontSide,
-    });
-
-    this.waterMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x3aa0e0,
-      transparent: true,
-      opacity: 0.62,
-      roughness: 0.08,
-      metalness: 0.05,
-      transmission: 0.55,
-      thickness: 0.6,
-      ior: 1.33,
-      flatShading: false,
-      emissive: 0x0a3048,
-      emissiveIntensity: 0.15,
-    });
+    this.terrainMaterial = createInkTerrainMaterial();
+    this.waterMaterial = createInkWaterMaterial();
   }
 
   private key(cx: number, cy: number, cz: number): string {
@@ -138,86 +171,124 @@ export class VoxelWorld {
   }
 
   /**
-   * Populous-style land silhouette: inland → beach → cliff face → water moat → void.
-   * Without this the map is a flat square slab with no readable rim.
+   * Land is the positive side of coastField. Sea columns are air, so the
+   * ocean plane is the only water surface and the chunk square never shows.
    */
   applyIslandEdges(chunkRadius: number): void {
-    const half = chunkRadius * CHUNK_SIZE + CHUNK_SIZE * 0.5;
-    // Squircle distance so square chunk grids still get soft rounded corners
-    const beachStart = half * 0.62;
-    const cliffStart = half * 0.78;
-    const waterStart = half * 0.9;
-    const voidStart = half * 1.02;
-    const waterLevel = 4;
+    const half = chunkRadius * CHUNK_SIZE;
+    const islets: { x: number; z: number; r: number; cap: VoxelType }[] = half >= 120
+      ? [
+          { x: 120, z: 10, r: 5, cap: VoxelType.Malice },
+          { x: -120, z: 72, r: 4.5, cap: VoxelType.DreamBlock },
+          { x: 18, z: -120, r: 4.5, cap: VoxelType.MushroomBrick },
+        ]
+      : [];
 
     for (const chunk of this.chunks.values()) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
         for (let x = 0; x < CHUNK_SIZE; x++) {
           const wx = chunk.cx * CHUNK_SIZE + x + 0.5;
           const wz = chunk.cz * CHUNK_SIZE + z + 0.5;
-          const ax = Math.abs(wx);
-          const az = Math.abs(wz);
-          const dist = Math.max(ax, az) + 0.42 * Math.min(ax, az);
+          const field = coastField(wx, wz, half);
+          const islet = field <= 0
+            ? islets.find((item) => Math.hypot(wx - item.x, wz - item.z) < item.r)
+            : undefined;
 
-          if (dist < beachStart) continue;
-
-          // Find current solid top
-          let top = -1;
-          for (let y = CHUNK_SIZE - 1; y >= 0; y--) {
-            const v = chunk.get(x, y, z);
-            if (v !== VoxelType.Air && v !== VoxelType.Water) {
-              top = y;
-              break;
-            }
+          if (islet) {
+            const edge = Math.hypot(wx - islet.x, wz - islet.z) / islet.r;
+            const top = edge > 0.62 ? 4 : 5;
+            writeColumn(chunk, x, z, top, edge > 0.62 ? VoxelType.Sand : islet.cap);
+            continue;
           }
 
-          if (dist >= voidStart) {
-            // Beyond the diorama — clear column so silhouette ends cleanly
+          if (field <= 0) {
             for (let y = 0; y < CHUNK_SIZE; y++) chunk.set(x, y, z, VoxelType.Air);
             continue;
           }
 
-          if (dist >= waterStart) {
-            // Water moat around the island
-            for (let y = 0; y < CHUNK_SIZE; y++) {
-              if (y <= waterLevel) chunk.set(x, y, z, VoxelType.Water);
-              else chunk.set(x, y, z, VoxelType.Air);
-            }
-            // Thin stone shelf under water so cliffs have a foot
-            if (top >= 0) chunk.set(x, Math.min(2, waterLevel - 1), z, VoxelType.Stone);
+          if (field < 0.085) {
+            const top = field < 0.04 ? 4 : 5;
+            writeColumn(chunk, x, z, top, VoxelType.Sand);
             continue;
           }
 
-          if (dist >= cliffStart) {
-            // Sheer cliff — one solid stone column (no dirt/stone stripes that
-            // reopen hollow “plank” lines between layers).
-            const t = (dist - cliffStart) / (waterStart - cliffStart);
-            const cliffTop = Math.max(2, Math.floor(THREE.MathUtils.lerp(Math.max(top, 6), 3, t)));
-            for (let y = 0; y < CHUNK_SIZE; y++) {
-              if (y <= cliffTop) chunk.set(x, y, z, VoxelType.Stone);
-              else if (y <= waterLevel) chunk.set(x, y, z, VoxelType.Water);
-              else chunk.set(x, y, z, VoxelType.Air);
-            }
-            continue;
-          }
-
-          // Beach taper — sand cap over solid fill (continuous column for greedy sides)
-          const t = (dist - beachStart) / (cliffStart - beachStart);
-          const targetTop = Math.max(
-            waterLevel + 1,
-            Math.floor(THREE.MathUtils.lerp(Math.max(top, waterLevel + 2), waterLevel + 2, t * 0.85)),
-          );
-          for (let y = 0; y < CHUNK_SIZE; y++) {
-            if (y < targetTop) chunk.set(x, y, z, VoxelType.Dirt);
-            else if (y === targetTop) chunk.set(x, y, z, VoxelType.Sand);
-            else if (y <= waterLevel) chunk.set(x, y, z, VoxelType.Water);
-            else chunk.set(x, y, z, VoxelType.Air);
-          }
+          writeColumn(chunk, x, z, domeTop(field, wx, wz), VoxelType.Grass);
         }
       }
       chunk.dirty = true;
     }
     this.rebuildDirty();
+  }
+
+  /** Flat sea that continues under the fog. The bay is a hole in the island, so it is this same water. */
+  createOcean(): THREE.Mesh {
+    const geo = new THREE.PlaneGeometry(720, 720, 220, 220);
+    geo.rotateX(-Math.PI / 2);
+    const shore = new Float32Array(geo.attributes.position.count);
+    geo.setAttribute('aShore', new THREE.BufferAttribute(shore, 1));
+    const mesh = new THREE.Mesh(geo, this.waterMaterial);
+    mesh.position.y = OCEAN_Y;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  /** Water shader uniforms (time + wave height texture). */
+  get waterUniforms(): InkWaterUniforms | undefined {
+    return (this.waterMaterial as THREE.MeshLambertMaterial).userData.waterUniforms as InkWaterUniforms | undefined;
+  }
+
+  /**
+   * Top of the column. Water sitting on a stone shelf reports top = Water
+   * and landY as the bed underneath.
+   */
+  probe(worldX: number, worldZ: number): { landY: number; waterY: number | null; top: VoxelType } {
+    const vx = Math.floor(worldX / VOXEL_SCALE);
+    const vz = Math.floor(worldZ / VOXEL_SCALE);
+    const cx = Math.floor(vx / CHUNK_SIZE);
+    const cz = Math.floor(vz / CHUNK_SIZE);
+    const lx = ((vx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const lz = ((vz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+
+    let landY = 0;
+    let waterY: number | null = null;
+    let top = VoxelType.Air;
+
+    for (let cy = 1; cy >= 0; cy--) {
+      const chunk = this.getChunk(cx, cy, cz);
+      if (!chunk) continue;
+      for (let ly = CHUNK_SIZE - 1; ly >= 0; ly--) {
+        const v = chunk.get(lx, ly, lz);
+        if (v === VoxelType.Air) continue;
+        if (top === VoxelType.Air) top = v;
+        if (v === VoxelType.Water) {
+          if (waterY === null) waterY = (cy * CHUNK_SIZE + ly + 0.85) * VOXEL_SCALE;
+          continue;
+        }
+        landY = (cy * CHUNK_SIZE + ly + 1) * VOXEL_SCALE;
+        return { landY, waterY, top };
+      }
+    }
+    return { landY, waterY, top };
+  }
+
+  surfaceType(worldX: number, worldZ: number): VoxelType {
+    return this.probe(worldX, worldZ).top;
+  }
+
+  isWater(worldX: number, worldZ: number): boolean {
+    const p = this.probe(worldX, worldZ);
+    if (p.top === VoxelType.Water) return true;
+    return p.landY < OCEAN_Y - 0.02;
+  }
+
+  /** Feet height. Land units wade; swimmers sit on the surface. */
+  walkHeight(worldX: number, worldZ: number, aquatic: boolean): number {
+    const p = this.probe(worldX, worldZ);
+    if (p.top === VoxelType.Water || p.landY < OCEAN_Y - 0.02) {
+      return aquatic ? OCEAN_Y + 0.02 : OCEAN_Y - 0.2;
+    }
+    return p.landY;
   }
 
   /** World-space Y of the top solid voxel surface at (worldX, worldZ). */
@@ -249,7 +320,7 @@ export class VoxelWorld {
     for (const mesh of this.waterMeshes.values()) {
       mesh.geometry.dispose();
     }
-    (this.terrainMaterial as THREE.MeshStandardMaterial).dispose();
-    (this.waterMaterial as THREE.MeshPhysicalMaterial).dispose();
+    this.terrainMaterial.dispose();
+    this.waterMaterial.dispose();
   }
 }
